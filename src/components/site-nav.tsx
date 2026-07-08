@@ -57,7 +57,6 @@ export function SiteNav() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
-// Dropdown logic skeleton
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
