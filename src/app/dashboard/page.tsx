@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { loadApplications, RECOMMENDED_INTERNSHIPS, type Application, type PipelineStage } from '@/lib/data';
 
 /* -------------------------------------------------------------------------- */
 /*  Mock / placeholder data                                                    */
@@ -16,63 +17,8 @@ const stats = [
   { label: 'Saved Internships', value: '27', delta: '5 new matches' },
 ];
 
-const recommendedInternships = [
-  {
-    id: 1,
-    role: 'Frontend Engineer Intern',
-    company: 'Luminary Labs',
-    tags: ['React', 'TypeScript', 'Remote'],
-    match: '97% match — strong React & TypeScript alignment with your profile.',
-  },
-  {
-    id: 2,
-    role: 'Full-Stack Developer Intern',
-    company: 'Stackform',
-    tags: ['Node.js', 'PostgreSQL', 'Hybrid'],
-    match: '91% match — your Node.js and expertise with PostgreSql makes up for a great fit here.',
-  },
-  {
-    id: 3,
-    role: 'Backend Engineer Intern',
-    company: 'Orbital Systems',
-    tags: ['Python', 'FastAPI', 'On-site'],
-    match: '88% match — your API projects stand out for this role.',
-  },
-  {
-    id: 4,
-    role: 'Dev Tools Engineer Intern',
-    company: 'Codeshift',
-    tags: ['Rust', 'CLI', 'Remote'],
-    match: '82% match — CLI projects in your portfolio are a great signal.',
-  },
-];
+const recommendedInternships = RECOMMENDED_INTERNSHIPS;
 
-type PipelineStage = 'Applied' | 'In Review' | 'Interview Scheduled' | 'Offer Received';
-type Application = { id: number; role: string; company: string; stage: PipelineStage; date: string };
-type StoredApplication = { role: string; company: string; appliedAt: string };
-
-const STORAGE_KEY = 'devstart_applications';
-
-function loadApplications(): Application[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return [];
-
-    const parsed = JSON.parse(stored) as Record<string, StoredApplication>;
-
-    return Object.entries(parsed)
-      .map(([id, app]) => ({
-        id: Number(id),
-        role: app.role,
-        company: app.company,
-        stage: 'Applied' as PipelineStage,
-        date: new Date(app.appliedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      }))
-      .sort((a, b) => b.id - a.id);
-  } catch {
-    return [];
-  }
-}
 
 const stageStyle: Record<PipelineStage, { border: string; text: string; bg: string }> = {
   Applied:               { border: 'border-[#333]',   text: 'text-white/50', bg: 'bg-white/5' },
@@ -143,7 +89,9 @@ export default function DashboardPage() {
   const [applications, setApplications] = useState<Application[]>([]);
 
   useEffect(() => {
-    setApplications(loadApplications());
+    Promise.resolve().then(() => {
+      setApplications(loadApplications());
+    });
   }, []);
 
   const filteredApplications = activeStage === 'All'

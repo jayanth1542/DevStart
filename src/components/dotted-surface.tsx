@@ -114,30 +114,30 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
     window.addEventListener('resize', handleResize);
     animate();
 
-    sceneRef.current = { scene, camera, renderer, particles: [points], animationId, count };
+    const currentContainer = containerRef.current;
+    const sceneState = { scene, camera, renderer, particles: [points], animationId, count };
+    sceneRef.current = sceneState;
 
     return () => {
       window.removeEventListener('resize', handleResize);
 
-      if (sceneRef.current) {
-        cancelAnimationFrame(sceneRef.current.animationId);
+      cancelAnimationFrame(sceneState.animationId);
 
-        sceneRef.current.scene.traverse((object) => {
-          if (object instanceof THREE.Points) {
-            object.geometry.dispose();
-            if (Array.isArray(object.material)) {
-              object.material.forEach((m) => m.dispose());
-            } else {
-              object.material.dispose();
-            }
+      sceneState.scene.traverse((object) => {
+        if (object instanceof THREE.Points) {
+          object.geometry.dispose();
+          if (Array.isArray(object.material)) {
+            object.material.forEach((m) => m.dispose());
+          } else {
+            object.material.dispose();
           }
-        });
-
-        sceneRef.current.renderer.dispose();
-
-        if (containerRef.current && sceneRef.current.renderer.domElement) {
-          containerRef.current.removeChild(sceneRef.current.renderer.domElement);
         }
+      });
+
+      sceneState.renderer.dispose();
+
+      if (currentContainer && sceneState.renderer.domElement) {
+        currentContainer.removeChild(sceneState.renderer.domElement);
       }
     };
   }, [theme]);

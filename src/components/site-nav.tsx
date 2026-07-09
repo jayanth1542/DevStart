@@ -50,61 +50,40 @@ function AnimatedNavLink({ href, children }: AnimatedNavLinkProps) {
 export function SiteNav() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  const [headerShapeClass, setHeaderShapeClass] = useState('rounded-full');
-  const shapeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Auth State Syncing
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userEmail, setUserEmail] = useState('');
+  const [userEmail, setUserEmail] = useState('user@example.com');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    // Check initial auth state
-    const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
-    setIsLoggedIn(loggedIn);
-    setUserEmail(localStorage.getItem('userEmail') || 'user@example.com');
+  const headerShapeClass = isOpen ? 'rounded-xl' : 'rounded-full';
 
-    // Sync auth state changes across the application
+  useEffect(() => {
     const checkAuth = () => {
-      const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
-      const email = localStorage.getItem('userEmail') || 'user@example.com';
-      setIsLoggedIn(loggedIn);
-      setUserEmail(email);
+      setIsLoggedIn(localStorage.getItem('isLoggedIn') === 'true');
+      setUserEmail(localStorage.getItem('userEmail') || 'user@example.com');
     };
 
-    const interval = setInterval(checkAuth, 300);
-
-    // Close dropdown on click outside
-    const clickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false);
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === 'isLoggedIn' || event.key === 'userEmail') {
+        checkAuth();
       }
     };
 
+    checkAuth();
     window.addEventListener('click', clickOutside);
+    window.addEventListener('storage', handleStorage);
 
     return () => {
-      clearInterval(interval);
       window.removeEventListener('click', clickOutside);
+      window.removeEventListener('storage', handleStorage);
     };
-  }, []);
 
-  useEffect(() => {
-    if (shapeTimeoutRef.current) clearTimeout(shapeTimeoutRef.current);
-
-    if (isOpen) {
-      setHeaderShapeClass('rounded-xl');
-    } else {
-      shapeTimeoutRef.current = setTimeout(() => {
-        setHeaderShapeClass('rounded-full');
-      }, 300);
+    function clickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
     }
-
-    return () => {
-      if (shapeTimeoutRef.current) clearTimeout(shapeTimeoutRef.current);
-    };
-  }, [isOpen]);
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');

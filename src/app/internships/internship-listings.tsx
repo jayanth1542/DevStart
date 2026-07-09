@@ -2,6 +2,15 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import {
+  ALL_INTERNSHIPS,
+  Internship,
+  loadAppliedMap,
+  saveApplication,
+  TAG_COLORS,
+  type FilterKey,
+  type ApplicationForm,
+} from '@/lib/data';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -20,106 +29,6 @@ const itemVariants = {
 
 const FILTERS = ['All', 'Frontend', 'Backend', 'AI/ML', 'Mobile', 'DevOps', 'Full Stack'] as const;
 
-type FilterKey = (typeof FILTERS)[number];
-
-type Internship = {
-  id: number;
-  role: string;
-  company: string;
-  location: string;
-  tag: string;
-  category: Exclude<FilterKey, 'All'>;
-  stack: string;
-  duration: string;
-  salary: string;
-  description: string;
-};
-
-const ALL_INTERNSHIPS: Internship[] = [
-  {
-    id: 1,
-    role: 'Frontend Engineer Intern',
-    company: 'Veritas Labs',
-    location: 'Remote',
-    tag: 'Remote',
-    category: 'Frontend',
-    stack: 'React · Next.js · TypeScript',
-    duration: '10 weeks',
-    salary: '$24/hr',
-    description: 'Work on production-grade UI components powering a B2B SaaS platform used by 10,000+ engineers. Own features end to end from design review to deployment.',
-  },
-  {
-    id: 2,
-    role: 'Backend Engineer Intern',
-    company: 'DataStream Inc',
-    location: 'San Francisco, CA',
-    tag: 'On-site',
-    category: 'Backend',
-    stack: 'Go · PostgreSQL · gRPC',
-    duration: '12 weeks',
-    salary: '$28/hr',
-    description: 'Build high-throughput data pipelines that process millions of events per day. Strong systems design fundamentals required; mentorship from senior engineers included.',
-  },
-  {
-    id: 3,
-    role: 'ML Research Intern',
-    company: 'Synthos AI',
-    location: 'New York, NY',
-    tag: 'Hybrid',
-    category: 'AI/ML',
-    stack: 'Python · PyTorch · CUDA',
-    duration: '8 weeks',
-    salary: '$27/hr',
-    description: 'Join our applied research team working on large language model fine-tuning and efficient inference. Publications encouraged; compute budget provided.',
-  },
-  {
-    id: 4,
-    role: 'Mobile Developer Intern',
-    company: 'Latchkey',
-    location: 'Austin, TX',
-    tag: 'On-site',
-    category: 'Mobile',
-    stack: 'React Native · Swift · Expo',
-    duration: '10 weeks',
-    salary: '$23/hr',
-    description: 'Ship features to our consumer app with 500K+ monthly active users. Work directly with the product and design teams in a fast-paced startup environment.',
-  },
-  {
-    id: 5,
-    role: 'DevOps / Platform Intern',
-    company: 'CloudBridge',
-    location: 'Remote',
-    tag: 'Remote',
-    category: 'DevOps',
-    stack: 'Kubernetes · Terraform · AWS',
-    duration: '12 weeks',
-    salary: '$26/hr',
-    description: 'Help automate our CI/CD infrastructure and improve developer tooling across 12 product teams. Prior Linux experience required; cloud certs a bonus.',
-  },
-  {
-    id: 6,
-    role: 'Full Stack Engineer Intern',
-    company: 'FinEdge',
-    location: 'London, UK',
-    tag: 'Hybrid',
-    category: 'Full Stack',
-    stack: 'Node.js · Vue · MongoDB',
-    duration: '10 weeks',
-    salary: '$25/hr',
-    description: 'Build internal tools and customer-facing features for a fintech platform serving retail investors across Europe. Remote-friendly for 3 days a week.',
-  },
-];
-
-const TAG_COLORS: Record<string, string> = {
-  Remote: 'border-cyan-400/20 bg-cyan-400/10 text-cyan-200',
-  'On-site': 'border-white/10 bg-white/10 text-white/70',
-  Hybrid: 'border-violet-400/20 bg-violet-500/10 text-violet-200',
-};
-
-const STORAGE_KEY = 'devstart_applications';
-
-type ApplicationForm = { name: string; email: string; note: string };
-
 export function InternshipListings() {
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterKey>('All');
@@ -130,19 +39,8 @@ export function InternshipListings() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as Record<number, unknown>;
-        const map: Record<number, boolean> = {};
-        Object.keys(parsed).forEach((key) => {
-          map[Number(key)] = true;
-        });
-        setApplied(map);
-      }
-    } catch {
-      // localStorage unavailable (e.g. SSR) — ignore
-    }
+    const map = loadAppliedMap();
+    Promise.resolve().then(() => setApplied(map));
   }, []);
 
   useEffect(() => {
@@ -176,19 +74,7 @@ export function InternshipListings() {
     if (!modalItem) return;
     setSubmitting(true);
 
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      const parsed = stored ? JSON.parse(stored) : {};
-      parsed[modalItem.id] = {
-        ...form,
-        role: modalItem.role,
-        company: modalItem.company,
-        appliedAt: new Date().toISOString(),
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
-    } catch {
-      // ignore storage errors, still update UI state below
-    }
+    saveApplication(modalItem, form);
 
     setApplied((prev) => ({ ...prev, [modalItem.id]: true }));
     setSubmitting(false);

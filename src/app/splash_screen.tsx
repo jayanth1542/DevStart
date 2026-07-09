@@ -6,7 +6,7 @@ import React, { useEffect, useRef, useState, Suspense } from 'react';
 import * as THREE from 'three';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 /* -------------------------------------------------------------------------- */
 /*  DottedSurface — animated waving-dots background (Three.js)                */
@@ -127,7 +127,8 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
 
 		animate();
 
-		sceneRef.current = {
+		const currentContainer = containerRef.current;
+		const sceneState = {
 			scene,
 			camera,
 			renderer,
@@ -135,31 +136,28 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
 			animationId,
 			count,
 		};
+		sceneRef.current = sceneState;
 
 		return () => {
 			window.removeEventListener('resize', handleResize);
 
-			if (sceneRef.current) {
-				cancelAnimationFrame(sceneRef.current.animationId);
+			cancelAnimationFrame(sceneState.animationId);
 
-				sceneRef.current.scene.traverse((object) => {
-					if (object instanceof THREE.Points) {
-						object.geometry.dispose();
-						if (Array.isArray(object.material)) {
-							object.material.forEach((material) => material.dispose());
-						} else {
-							object.material.dispose();
-						}
+			sceneState.scene.traverse((object) => {
+				if (object instanceof THREE.Points) {
+					object.geometry.dispose();
+					if (Array.isArray(object.material)) {
+						object.material.forEach((material) => material.dispose());
+					} else {
+						object.material.dispose();
 					}
-				});
-
-				sceneRef.current.renderer.dispose();
-
-				if (containerRef.current && sceneRef.current.renderer.domElement) {
-					containerRef.current.removeChild(
-						sceneRef.current.renderer.domElement,
-					);
 				}
+			});
+
+			sceneState.renderer.dispose();
+
+			if (currentContainer && sceneState.renderer.domElement) {
+				currentContainer.removeChild(sceneState.renderer.domElement);
 			}
 		};
 	}, [theme]);
@@ -200,32 +198,11 @@ interface MiniNavbarProps {
 
 function MiniNavbar({ flowType, setFlowType, resetForm }: MiniNavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [headerShapeClass, setHeaderShapeClass] = useState('rounded-full');
-  const shapeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   const toggleMenu = () => {
     setIsOpen(!isOpen);
   };
 
-  useEffect(() => {
-    if (shapeTimeoutRef.current) {
-      clearTimeout(shapeTimeoutRef.current);
-    }
-
-    if (isOpen) {
-      setHeaderShapeClass('rounded-xl');
-    } else {
-      shapeTimeoutRef.current = setTimeout(() => {
-        setHeaderShapeClass('rounded-full');
-      }, 300);
-    }
-
-    return () => {
-      if (shapeTimeoutRef.current) {
-        clearTimeout(shapeTimeoutRef.current);
-      }
-    };
-  }, [isOpen]);
+  const headerShapeClass = isOpen ? 'rounded-xl' : 'rounded-full';
 
   const logoElement = (
     <div className="flex items-center gap-2 group select-none">
@@ -364,21 +341,15 @@ interface SignInPageProps {
  * Must be wrapped in <Suspense> because useSearchParams opts into dynamic rendering.
  */
 function SignInPageInner({ className, noShell }: SignInPageProps) {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const initialFlow = searchParams.get('flow') === 'login' ? 'login' : 'signup';
+  const flowType = searchParams.get('flow') === 'login' ? 'login' : 'signup';
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [flowType, setFlowType] = useState<"signup" | "login">(initialFlow);
   const [step, setStep] = useState<"email" | "code" | "password" | "success">("email");
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const codeInputRefs = useRef<(HTMLInputElement | null)[]>([]);
-
-  // Sync flowType when the URL query param changes (e.g. nav LogIn/Signup click)
-  useEffect(() => {
-    const flow = searchParams.get('flow');
-    setFlowType(flow === 'login' ? 'login' : 'signup');
-  }, [searchParams]);
 
   // Drives a subtle background "pulse" once the code is verified — the
   // wave surface briefly speeds up / brightens instead of the old
@@ -811,7 +782,7 @@ function SignInPageInner({ className, noShell }: SignInPageProps) {
       <div className="relative z-10 flex flex-col flex-1">
         <MiniNavbar
           flowType={flowType}
-          setFlowType={setFlowType}
+          setFlowType={(type) => router.push(`/?flow=${type}`)}
           resetForm={resetForm}
         />
 
