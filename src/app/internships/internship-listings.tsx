@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -18,19 +18,102 @@ const itemVariants = {
   show: { opacity: 1, transition: { duration: 0.4, ease: 'easeOut' } },
 } as const;
 
-const ALL_INTERNSHIPS = [
-  { id: 1, role: 'Frontend Engineer Intern', company: 'Veritas Labs', location: 'Remote', tag: 'Remote', stack: 'React · Next.js · TypeScript', description: 'Work on production-grade UI components powering a B2B SaaS platform used by 10,000+ engineers. Own features end-to-end from design review to deployment.' },
-  { id: 2, role: 'Backend Engineer Intern', company: 'DataStream Inc', location: 'San Francisco, CA', tag: 'On-site', stack: 'Go · PostgreSQL · gRPC', description: 'Build high-throughput data pipelines that process millions of events per day. Strong systems design fundamentals required; mentorship from senior engineers included.' },
-  { id: 3, role: 'ML Research Intern', company: 'Synthos AI', location: 'New York, NY', tag: 'Hybrid', stack: 'Python · PyTorch · CUDA', description: 'Join our applied research team working on large language model fine-tuning and efficient inference. Publications encouraged; compute budget provided.' },
-  { id: 4, role: 'Mobile Developer Intern', company: 'Latchkey', location: 'Austin, TX', tag: 'On-site', stack: 'React Native · Swift · Expo', description: 'Ship features to our consumer app with 500K+ monthly active users. Work directly with the product and design teams in a fast-paced, startup environment.' },
-  { id: 5, role: 'DevOps / Platform Intern', company: 'CloudBridge', location: 'Remote', tag: 'Remote', stack: 'Kubernetes · Terraform · AWS', description: 'Help automate our CI/CD infrastructure and improve developer tooling across 12 product teams. Prior Linux experience required; cloud certs a bonus.' },
-  { id: 6, role: 'Full Stack Engineer Intern', company: 'FinEdge', location: 'London, UK', tag: 'Hybrid', stack: 'Node.js · Vue · MongoDB', description: 'Build internal tools and customer-facing features for a fintech platform serving retail investors across Europe. Remote-friendly for 3 days a week.' },
+const FILTERS = ['All', 'Frontend', 'Backend', 'AI/ML', 'Mobile', 'DevOps', 'Full Stack'] as const;
+
+type FilterKey = (typeof FILTERS)[number];
+
+type Internship = {
+  id: number;
+  role: string;
+  company: string;
+  location: string;
+  tag: string;
+  category: Exclude<FilterKey, 'All'>;
+  stack: string;
+  duration: string;
+  salary: string;
+  description: string;
+};
+
+const ALL_INTERNSHIPS: Internship[] = [
+  {
+    id: 1,
+    role: 'Frontend Engineer Intern',
+    company: 'Veritas Labs',
+    location: 'Remote',
+    tag: 'Remote',
+    category: 'Frontend',
+    stack: 'React · Next.js · TypeScript',
+    duration: '10 weeks',
+    salary: '$24/hr',
+    description: 'Work on production-grade UI components powering a B2B SaaS platform used by 10,000+ engineers. Own features end to end from design review to deployment.',
+  },
+  {
+    id: 2,
+    role: 'Backend Engineer Intern',
+    company: 'DataStream Inc',
+    location: 'San Francisco, CA',
+    tag: 'On-site',
+    category: 'Backend',
+    stack: 'Go · PostgreSQL · gRPC',
+    duration: '12 weeks',
+    salary: '$28/hr',
+    description: 'Build high-throughput data pipelines that process millions of events per day. Strong systems design fundamentals required; mentorship from senior engineers included.',
+  },
+  {
+    id: 3,
+    role: 'ML Research Intern',
+    company: 'Synthos AI',
+    location: 'New York, NY',
+    tag: 'Hybrid',
+    category: 'AI/ML',
+    stack: 'Python · PyTorch · CUDA',
+    duration: '8 weeks',
+    salary: '$27/hr',
+    description: 'Join our applied research team working on large language model fine-tuning and efficient inference. Publications encouraged; compute budget provided.',
+  },
+  {
+    id: 4,
+    role: 'Mobile Developer Intern',
+    company: 'Latchkey',
+    location: 'Austin, TX',
+    tag: 'On-site',
+    category: 'Mobile',
+    stack: 'React Native · Swift · Expo',
+    duration: '10 weeks',
+    salary: '$23/hr',
+    description: 'Ship features to our consumer app with 500K+ monthly active users. Work directly with the product and design teams in a fast-paced startup environment.',
+  },
+  {
+    id: 5,
+    role: 'DevOps / Platform Intern',
+    company: 'CloudBridge',
+    location: 'Remote',
+    tag: 'Remote',
+    category: 'DevOps',
+    stack: 'Kubernetes · Terraform · AWS',
+    duration: '12 weeks',
+    salary: '$26/hr',
+    description: 'Help automate our CI/CD infrastructure and improve developer tooling across 12 product teams. Prior Linux experience required; cloud certs a bonus.',
+  },
+  {
+    id: 6,
+    role: 'Full Stack Engineer Intern',
+    company: 'FinEdge',
+    location: 'London, UK',
+    tag: 'Hybrid',
+    category: 'Full Stack',
+    stack: 'Node.js · Vue · MongoDB',
+    duration: '10 weeks',
+    salary: '$25/hr',
+    description: 'Build internal tools and customer-facing features for a fintech platform serving retail investors across Europe. Remote-friendly for 3 days a week.',
+  },
 ];
 
 const TAG_COLORS: Record<string, string> = {
-  Remote: 'bg-white/10 text-white/70',
-  'On-site': 'bg-white/5 text-white/50',
-  Hybrid: 'bg-white/5 text-white/50',
+  Remote: 'border-cyan-400/20 bg-cyan-400/10 text-cyan-200',
+  'On-site': 'border-white/10 bg-white/10 text-white/70',
+  Hybrid: 'border-violet-400/20 bg-violet-500/10 text-violet-200',
 };
 
 const STORAGE_KEY = 'devstart_applications';
@@ -39,19 +122,22 @@ type ApplicationForm = { name: string; email: string; note: string };
 
 export function InternshipListings() {
   const [query, setQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState<FilterKey>('All');
   const [applied, setApplied] = useState<Record<number, boolean>>({});
-  const [modalItem, setModalItem] = useState<typeof ALL_INTERNSHIPS[number] | null>(null);
+  const [modalItem, setModalItem] = useState<Internship | null>(null);
   const [form, setForm] = useState<ApplicationForm>({ name: '', email: '', note: '' });
   const [submitting, setSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Load previously applied internships on mount
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored) as Record<number, unknown>;
         const map: Record<number, boolean> = {};
-        Object.keys(parsed).forEach((k) => (map[Number(k)] = true));
+        Object.keys(parsed).forEach((key) => {
+          map[Number(key)] = true;
+        });
         setApplied(map);
       }
     } catch {
@@ -59,22 +145,33 @@ export function InternshipListings() {
     }
   }, []);
 
-  const filtered = ALL_INTERNSHIPS.filter((item) => {
-    const q = query.toLowerCase();
-    return (
-      item.role.toLowerCase().includes(q) ||
-      item.company.toLowerCase().includes(q) ||
-      item.stack.toLowerCase().includes(q) ||
-      item.location.toLowerCase().includes(q)
-    );
-  });
+  useEffect(() => {
+    if (!successMessage) return;
+    const timer = window.setTimeout(() => setSuccessMessage(null), 2800);
+    return () => window.clearTimeout(timer);
+  }, [successMessage]);
 
-  function openApplyModal(item: typeof ALL_INTERNSHIPS[number]) {
+  const filtered = useMemo(() => {
+    const normalizedQuery = query.toLowerCase();
+
+    return ALL_INTERNSHIPS.filter((item) => {
+      const matchesFilter = activeFilter === 'All' || item.category === activeFilter;
+      const matchesQuery =
+        item.role.toLowerCase().includes(normalizedQuery) ||
+        item.company.toLowerCase().includes(normalizedQuery) ||
+        item.stack.toLowerCase().includes(normalizedQuery) ||
+        item.location.toLowerCase().includes(normalizedQuery);
+
+      return matchesFilter && matchesQuery;
+    });
+  }, [activeFilter, query]);
+
+  function openApplyModal(item: Internship) {
     setForm({ name: '', email: '', note: '' });
     setModalItem(item);
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!modalItem) return;
     setSubmitting(true);
@@ -96,97 +193,129 @@ export function InternshipListings() {
     setApplied((prev) => ({ ...prev, [modalItem.id]: true }));
     setSubmitting(false);
     setModalItem(null);
+    setSuccessMessage(`Application submitted for ${modalItem.role} at ${modalItem.company}.`);
   }
 
   return (
     <div className="space-y-6">
-      {/* Search bar */}
-      <div className="relative">
-        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-4 h-4">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-          </svg>
-        </span>
-        <input
-          id="internship-search"
-          type="text"
-          placeholder="Search by role, company, stack, or location…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-full text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors"
-        />
+      <div className="rounded-[24px] border border-white/10 bg-[#070910]/80 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.25)] sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-sm font-medium text-white/70">Filter roles</p>
+            <p className="text-xs text-white/40">Search by role, stack, location, or company.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {FILTERS.map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                onClick={() => setActiveFilter(filter)}
+                className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                  activeFilter === filter
+                    ? 'border-cyan-400/30 bg-cyan-400/15 text-cyan-200'
+                    : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                {filter}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <div className="relative flex-1">
+            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/40">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-4 w-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+            </span>
+            <input
+              id="internship-search"
+              type="text"
+              placeholder="Search by role, company, stack, or location…"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              className="w-full rounded-full border border-white/10 bg-white/5 py-3 pl-10 pr-4 text-sm text-white placeholder:text-white/30 transition-colors focus:border-white/30 focus:outline-none"
+            />
+          </div>
+          <div className="rounded-full border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white/60">
+            {filtered.length} {filtered.length === 1 ? 'match' : 'matches'}
+          </div>
+        </div>
       </div>
 
-      <p className="text-white/40 text-xs">
-        {filtered.length} internship{filtered.length !== 1 ? 's' : ''} found
-        {query ? ` for "${query}"` : ''}
-      </p>
+      <AnimatePresence>
+        {successMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-200"
+          >
+            {successMessage}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <motion.div
-        className="grid sm:grid-cols-2 gap-4"
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-      >
+      <motion.div className="grid gap-4 lg:grid-cols-2" variants={containerVariants} initial="hidden" animate="show">
         {filtered.length > 0 ? (
           filtered.map((item) => (
-            <motion.div
+            <motion.article
               key={item.id}
               variants={itemVariants}
-              className="flex flex-col gap-4 rounded-2xl border border-[#1c1c1c] bg-[#090909] p-6 hover:bg-[#121212] hover:border-[#333] transition-all duration-300"
+              className="flex flex-col gap-4 rounded-[24px] border border-white/10 bg-[#090a12] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.2)] transition-all duration-300 hover:-translate-y-1 hover:border-white/20 hover:bg-[#10131d]"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-white font-semibold text-sm leading-snug">{item.role}</h2>
-                  <p className="text-white/50 text-xs mt-0.5">{item.company}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-300">{item.category}</p>
+                  <h2 className="mt-2 text-lg font-semibold text-white">{item.role}</h2>
+                  <p className="mt-1 text-sm text-white/55">{item.company}</p>
                 </div>
-                <span className={`shrink-0 text-xs px-2.5 py-1 rounded-full ${TAG_COLORS[item.tag] ?? 'bg-white/5 text-white/40'}`}>
+                <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${TAG_COLORS[item.tag] ?? 'border-white/10 bg-white/5 text-white/40'}`}>
                   {item.tag}
                 </span>
               </div>
 
-              <div className="space-y-1">
-                <p className="text-white/40 text-xs flex items-center gap-1.5">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-3 h-3 shrink-0">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-                  </svg>
-                  {item.location}
-                </p>
-                <p className="text-white/40 text-xs">{item.stack}</p>
+              <div className="flex flex-wrap gap-2 text-xs text-white/50">
+                <span className="rounded-full bg-white/5 px-2.5 py-1">{item.location}</span>
+                <span className="rounded-full bg-white/5 px-2.5 py-1">{item.duration}</span>
+                <span className="rounded-full bg-white/5 px-2.5 py-1">{item.salary}</span>
               </div>
 
-              <p className="text-white/50 text-sm leading-relaxed flex-1">{item.description}</p>
+              <p className="flex-1 text-sm leading-7 text-white/65">{item.description}</p>
 
-              <button
-                id={`apply-btn-${item.id}`}
-                onClick={() => openApplyModal(item)}
-                disabled={applied[item.id]}
-                className={`w-full rounded-full border text-sm py-2.5 font-medium transition-all duration-200 ${
-                  applied[item.id]
-                    ? 'border-transparent bg-white/10 text-white/40 cursor-default'
-                    : 'border-white/10 bg-transparent text-white/70 hover:bg-white hover:text-black hover:border-transparent'
-                }`}
-              >
-                {applied[item.id] ? 'Applied ✓' : 'Apply Now'}
-              </button>
-            </motion.div>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs uppercase tracking-[0.2em] text-white/35">{item.stack}</p>
+                <button
+                  id={`apply-btn-${item.id}`}
+                  type="button"
+                  onClick={() => openApplyModal(item)}
+                  disabled={applied[item.id]}
+                  className={`rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                    applied[item.id]
+                      ? 'cursor-default border-transparent bg-white/10 text-white/40'
+                      : 'border-white/10 bg-transparent text-white/70 hover:border-transparent hover:bg-white hover:text-black'
+                  }`}
+                >
+                  {applied[item.id] ? 'Applied ✓' : 'Apply now'}
+                </button>
+              </div>
+            </motion.article>
           ))
         ) : (
-          <div className="sm:col-span-2 text-center py-16 text-white/40">
-            No internships match your search. Try a different term.
+          <div className="rounded-[24px] border border-white/10 bg-[#090a12] p-10 text-center text-white/40 lg:col-span-2">
+            No internships match your search. Try a different term or filter.
           </div>
         )}
       </motion.div>
 
-      {/* Apply modal */}
       <AnimatePresence>
         {modalItem && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-6"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6"
             onClick={() => setModalItem(null)}
           >
             <motion.div
@@ -194,44 +323,52 @@ export function InternshipListings() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.98 }}
               transition={{ duration: 0.2 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md rounded-2xl border border-[#1c1c1c] bg-[#0c0c0c] p-6 space-y-5"
+              onClick={(event) => event.stopPropagation()}
+              className="w-full max-w-md space-y-5 rounded-[24px] border border-white/10 bg-[#0c0c0c] p-6"
             >
               <div>
-                <h3 className="text-white font-semibold text-base">{modalItem.role}</h3>
-                <p className="text-white/50 text-xs mt-1">{modalItem.company} · {modalItem.location}</p>
+                <h3 className="text-base font-semibold text-white">{modalItem.role}</h3>
+                <p className="mt-1 text-xs text-white/50">
+                  {modalItem.company} · {modalItem.location}
+                </p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-3">
                 <div>
-                  <label htmlFor="apply-name" className="text-white/50 text-xs block mb-1.5">Full name</label>
+                  <label htmlFor="apply-name" className="mb-1.5 block text-xs text-white/50">
+                    Full name
+                  </label>
                   <input
                     id="apply-name"
                     required
                     value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-white/30"
+                    onChange={(event) => setForm({ ...form, name: event.target.value })}
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white focus:border-white/30 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label htmlFor="apply-email" className="text-white/50 text-xs block mb-1.5">Email</label>
+                  <label htmlFor="apply-email" className="mb-1.5 block text-xs text-white/50">
+                    Email
+                  </label>
                   <input
                     id="apply-email"
                     type="email"
                     required
                     value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-white/30"
+                    onChange={(event) => setForm({ ...form, email: event.target.value })}
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white focus:border-white/30 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label htmlFor="apply-note" className="text-white/50 text-xs block mb-1.5">Why are you a fit? (optional)</label>
+                  <label htmlFor="apply-note" className="mb-1.5 block text-xs text-white/50">
+                    Why are you a fit? (optional)
+                  </label>
                   <textarea
                     id="apply-note"
                     rows={3}
                     value={form.note}
-                    onChange={(e) => setForm({ ...form, note: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-white/30 resize-none"
+                    onChange={(event) => setForm({ ...form, note: event.target.value })}
+                    className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white focus:border-white/30 focus:outline-none"
                   />
                 </div>
 
@@ -239,14 +376,14 @@ export function InternshipListings() {
                   <button
                     type="button"
                     onClick={() => setModalItem(null)}
-                    className="flex-1 rounded-full border border-white/10 text-white/60 text-sm py-2.5 hover:bg-white/5 transition-colors"
+                    className="flex-1 rounded-full border border-white/10 py-2.5 text-sm text-white/60 transition-colors hover:bg-white/5"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="flex-1 rounded-full bg-white text-black text-sm py-2.5 font-medium hover:bg-white/90 transition-colors disabled:opacity-50"
+                    className="flex-1 rounded-full bg-white py-2.5 text-sm font-medium text-black transition-colors hover:bg-white/90 disabled:opacity-50"
                   >
                     {submitting ? 'Submitting…' : 'Submit application'}
                   </button>

@@ -20,19 +20,21 @@ const itemVariants = {
 
 export default function AboutPage() {
   return (
-    <PageTransition className="min-h-screen pt-48 pb-20 px-6">
-      <div className="max-w-3xl mx-auto space-y-10">
+    <PageTransition className="min-h-screen pt-40 pb-20 px-6 sm:pt-48">
+      <div className="mx-auto flex max-w-5xl flex-col gap-8">
 
-        {/* Hero / Mission */}
-        <section className="space-y-5 text-center">
-          <h1 className="text-[2.5rem] font-bold leading-[1.1] tracking-tight text-white">
-            Built for Developers<br />Who Are Just Getting Started
-          </h1>
-          <p className="text-lg text-white/70 font-light max-w-xl mx-auto">
-            Breaking into tech shouldn&apos;t require knowing the right people.
-            Internships are where careers begin — and every developer deserves
-            a fair shot at their first one.
-          </p>
+        <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(54,173,255,0.18),_transparent_38%),linear-gradient(135deg,_rgba(13,16,31,0.98),_rgba(8,10,20,0.95))] p-8 shadow-[0_30px_80px_rgba(0,0,0,0.35)] sm:p-10">
+          <div className="mx-auto max-w-3xl text-center space-y-4">
+            <div className="inline-flex items-center rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-300">
+              About Devstart
+            </div>
+            <h1 className="text-4xl font-semibold leading-tight tracking-tight text-white sm:text-5xl">
+              Built for developers who are just getting started.
+            </h1>
+            <p className="text-lg text-white/70 sm:text-xl">
+              Breaking into tech shouldn&apos;t require knowing the right people. Internships are where careers begin, and every developer deserves a fair shot at their first one.
+            </p>
+          </div>
         </section>
 
 
@@ -89,7 +91,7 @@ export default function AboutPage() {
               <motion.div
                 key={item.title}
                 variants={itemVariants}
-                className="group flex flex-col gap-4 rounded-2xl border border-[#1c1c1c] bg-[#090909] p-6 hover:bg-[#121212] hover:border-[#333] transition-all duration-300"
+                className="group flex flex-col gap-4 rounded-[24px] border border-white/10 bg-[#090a12] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.2)] hover:-translate-y-1 hover:border-white/20 hover:bg-[#10131d] transition-all duration-300"
               >
                 <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
                   {item.icon}
@@ -125,7 +127,7 @@ export default function AboutPage() {
               <motion.div
                 key={item.label}
                 variants={itemVariants}
-                className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-[#1c1c1c] bg-[#090909] py-8 px-4 text-center hover:bg-[#121212] hover:border-[#333] transition-all duration-300"
+                className="flex flex-col items-center justify-center gap-1 rounded-[24px] border border-white/10 bg-[#090a12] py-8 px-4 text-center shadow-[0_20px_60px_rgba(0,0,0,0.2)] hover:-translate-y-1 hover:border-white/20 hover:bg-[#10131d] transition-all duration-300"
               >
                 <span className="text-[2rem] font-bold text-white leading-none">{item.stat}</span>
                 <span className="text-xs text-white/40 mt-1">{item.label}</span>
@@ -135,12 +137,11 @@ export default function AboutPage() {
         </section>
 
         {/* Mission closing */}
-        <section className="text-center space-y-4 pb-6">
-          <p className="text-white/50 text-base font-light max-w-lg mx-auto leading-relaxed">
-            Our mission is simple: remove every barrier between a motivated developer
-            and their first meaningful work experience.
+        <section className="rounded-[24px] border border-white/10 bg-[#090a12] p-8 text-center shadow-[0_20px_60px_rgba(0,0,0,0.2)]">
+          <p className="mx-auto max-w-2xl text-base font-light leading-relaxed text-white/70">
+            Our mission is simple: remove every barrier between a motivated developer and their first meaningful work experience.
           </p>
-          <p className="text-white/40 text-sm">— The Devstart Team</p>
+          <p className="mt-4 text-sm text-white/40">— The Devstart Team</p>
         </section>
 
       </div>

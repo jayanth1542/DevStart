@@ -182,19 +182,40 @@ export default function DashboardPage() {
           {/* -------------------------------------------------------------- */}
           {/* 1. Header                                                        */}
           {/* -------------------------------------------------------------- */}
-          <div className="space-y-2">
-            <p className="text-white/40 text-xs uppercase tracking-[0.2em] font-medium">Developer Portal</p>
-            <h1 className="text-[2.5rem] font-bold leading-[1.1] tracking-tight text-white">Dashboard</h1>
-            <p className="text-white/50 text-sm font-light">
-              Welcome back. Here&apos;s where your internship journey stands today.
-            </p>
+          <div className="rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(54,173,255,0.18),_transparent_40%),linear-gradient(135deg,_rgba(13,16,31,0.98),_rgba(8,10,20,0.95))] p-6 shadow-[0_25px_70px_rgba(0,0,0,0.25)] sm:p-8">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-2xl space-y-3">
+                <p className="text-white/40 text-xs uppercase tracking-[0.2em] font-medium">Developer Portal</p>
+                <h1 className="text-[2.4rem] font-bold leading-[1.05] tracking-tight text-white sm:text-[2.8rem]">Dashboard</h1>
+                <p className="text-white/60 text-sm sm:text-base">
+                  Welcome back. Your internship applications are moving, and there are a few strong opportunities waiting for your next move.
+                </p>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {['3 applications tracked', '2 strong matches this week', 'Resume review ready'].map((item) => (
+                    <span key={item} className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white/70">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4 backdrop-blur sm:min-w-[280px]">
+                <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">Next best move</p>
+                <p className="mt-2 text-sm leading-7 text-white/70">
+                  Apply to the frontend and backend roles that match your portfolio and keep your momentum going.
+                </p>
+                <Link href="/internships" className="mt-4 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-white/90">
+                  Open recommendations
+                </Link>
+              </div>
+            </div>
           </div>
 
           {/* -------------------------------------------------------------- */}
           {/* 2. Stats Row                                                     */}
           {/* -------------------------------------------------------------- */}
           <motion.div
-            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4"
+            className="grid grid-cols-2 sm:grid-cols-4 gap-4"
             variants={containerVariants}
             initial="hidden"
             animate="show"
@@ -203,7 +224,7 @@ export default function DashboardPage() {
               <motion.div
                 key={stat.label}
                 variants={itemVariants}
-                className="rounded-2xl border border-[#1c1c1c] bg-[#090909] p-5 cursor-pointer hover:bg-[#121212] hover:border-[#333] transition-all duration-300"
+                className="rounded-2xl border border-[#1c1c1c] bg-gradient-to-br from-white/[0.06] to-white/[0.02] p-5 cursor-pointer hover:bg-[#121212] hover:border-[#333] transition-all duration-300"
               >
                 <p className="text-white/40 text-xs font-medium uppercase tracking-wider leading-snug">
                   {stat.label}

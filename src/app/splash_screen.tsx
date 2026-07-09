@@ -494,6 +494,15 @@ function SignInPageInner({ className, noShell }: SignInPageProps) {
               <p className="text-xl text-white/70 font-light">Sign in to start applying</p>
             </div>
 
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left shadow-[0_20px_50px_rgba(0,0,0,0.18)]">
+              <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">Why students choose Devstart</p>
+              <div className="mt-3 space-y-2 text-sm text-white/70">
+                <div className="flex items-center gap-2"><span className="text-cyan-300">•</span><span>Curated startup and product internships</span></div>
+                <div className="flex items-center gap-2"><span className="text-cyan-300">•</span><span>Fast, focused applications without recruiter spam</span></div>
+                <div className="flex items-center gap-2"><span className="text-cyan-300">•</span><span>Track progress and keep momentum in one place</span></div>
+              </div>
+            </div>
+
             <div className="space-y-4">
               <button
                 type="button"
@@ -520,6 +529,7 @@ function SignInPageInner({ className, noShell }: SignInPageProps) {
                     className="w-full backdrop-blur-[1px] text-white border-1 border-white/10 rounded-full py-3 px-4 focus:outline-none focus:border focus:border-white/30 text-center"
                     required
                   />
+                  <p className="mt-2 text-xs text-white/40">Use any email — we’ll send a one-time code to continue.</p>
                   <button
                     type="submit"
                     className="absolute right-1.5 top-1.5 text-white w-9 h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors group overflow-hidden"
@@ -643,6 +653,10 @@ function SignInPageInner({ className, noShell }: SignInPageProps) {
             <div className="space-y-1 flex flex-col items-center">
               <h1 className="text-[2.5rem] font-bold leading-[1.1] tracking-tight text-white whitespace-nowrap">Enter Password</h1>
               <p className="text-[1.8rem] text-white/70 font-light">Please enter your password</p>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
+              Create a secure password to keep your applications and progress safe.
             </div>
 
             <form onSubmit={handlePasswordSubmit}>
