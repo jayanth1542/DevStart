@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -10,7 +10,6 @@ import { cn } from '@/lib/utils';
 /* -------------------------------------------------------------------------- */
 
 const stats = [
-  { label: 'Applied Internships', value: '12', delta: '+3 this week' },
   { label: 'Interviews Scheduled', value: '3', delta: '2 upcoming' },
   { label: 'Offers Received', value: '1', delta: 'Congrats! ✉️' },
   { label: 'Profile Strength', value: '84%', delta: '+6% since last week' },
@@ -49,14 +48,31 @@ const recommendedInternships = [
 ];
 
 type PipelineStage = 'Applied' | 'In Review' | 'Interview Scheduled' | 'Offer Received';
+type Application = { id: number; role: string; company: string; stage: PipelineStage; date: string };
+type StoredApplication = { role: string; company: string; appliedAt: string };
 
-const applications: { id: number; role: string; company: string; stage: PipelineStage; date: string }[] = [
-  { id: 1, role: 'Frontend Engineer Intern', company: 'Luminary Labs', stage: 'Offer Received', date: 'Jul 3' },
-  { id: 2, role: 'Full-Stack Developer Intern', company: 'Stackform', stage: 'Interview Scheduled', date: 'Jul 6' },
-  { id: 3, role: 'Platform Intern', company: 'Nexus Cloud', stage: 'In Review', date: 'Jun 28' },
-  { id: 4, role: 'Backend Intern', company: 'Helix API', stage: 'Applied', date: 'Jun 25' },
-  { id: 5, role: 'DevOps Intern', company: 'Gridline', stage: 'Applied', date: 'Jun 22' },
-];
+const STORAGE_KEY = 'devstart_applications';
+
+function loadApplications(): Application[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return [];
+
+    const parsed = JSON.parse(stored) as Record<string, StoredApplication>;
+
+    return Object.entries(parsed)
+      .map(([id, app]) => ({
+        id: Number(id),
+        role: app.role,
+        company: app.company,
+        stage: 'Applied' as PipelineStage,
+        date: new Date(app.appliedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      }))
+      .sort((a, b) => b.id - a.id);
+  } catch {
+    return [];
+  }
+}
 
 const stageStyle: Record<PipelineStage, { border: string; text: string; bg: string }> = {
   Applied:               { border: 'border-[#333]',   text: 'text-white/50', bg: 'bg-white/5' },
@@ -124,10 +140,24 @@ const itemVariants = {
 
 export default function DashboardPage() {
   const [activeStage, setActiveStage] = useState<PipelineStage | 'All'>('All');
+  const [applications, setApplications] = useState<Application[]>([]);
+
+  useEffect(() => {
+    setApplications(loadApplications());
+  }, []);
 
   const filteredApplications = activeStage === 'All'
     ? applications
     : applications.filter(app => app.stage === activeStage);
+
+  const displayStats = [
+    {
+      label: 'Applied Internships',
+      value: String(applications.length),
+      delta: applications.length > 0 ? 'Tracked automatically' : 'Apply to see it here',
+    },
+    ...stats,
+  ];
 
   return (
     /*
@@ -169,7 +199,7 @@ export default function DashboardPage() {
             initial="hidden"
             animate="show"
           >
-            {stats.map((stat) => (
+            {displayStats.map((stat) => (
               <motion.div
                 key={stat.label}
                 variants={itemVariants}
@@ -240,9 +270,12 @@ export default function DashboardPage() {
                         ))}
                       </div>
                       <p className="text-white/40 text-xs leading-relaxed">{item.match}</p>
-                      <button className="w-full text-xs font-semibold text-black bg-white border border-transparent rounded-full py-2 hover:bg-white/90 transition-all duration-200 cursor-pointer">
+                      <Link
+                        href="/internships"
+                        className="block w-full text-center text-xs font-semibold text-black bg-white border border-transparent rounded-full py-2 hover:bg-white/90 transition-all duration-200 cursor-pointer"
+                      >
                         View &amp; Apply
-                      </button>
+                      </Link>
                     </motion.div>
                   ))}
                 </motion.div>
@@ -305,7 +338,19 @@ export default function DashboardPage() {
                       transition={{ duration: 0.4, ease: "easeOut" }}
                       className="space-y-2 absolute inset-x-0 top-0"
                     >
-                      {filteredApplications.length > 0 ? (
+                      {applications.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center border border-dashed border-[#1c1c1c] rounded-xl py-12 px-4 text-center gap-3">
+                          <p className="text-white/30 text-sm">
+                            You haven&apos;t applied to anything yet.
+                          </p>
+                          <Link
+                            href="/internships"
+                            className="text-xs font-semibold text-black bg-white rounded-full px-4 py-2 hover:bg-white/90 transition-all duration-200"
+                          >
+                            Browse Internships →
+                          </Link>
+                        </div>
+                      ) : filteredApplications.length > 0 ? (
                         filteredApplications.map((app) => {
                           const s = stageStyle[app.stage];
                           return (
