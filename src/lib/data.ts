@@ -133,6 +133,11 @@ export type Application = {
   company: string;
   stage: PipelineStage;
   date: string;
+  location?: string;
+  stack?: string;
+  tag?: string;
+  match?: string;
+  category?: string;
 };
 
 export const STORAGE_KEY = 'devstart_applications';
@@ -162,16 +167,25 @@ export function loadApplications(): Application[] {
 
     const parsed = JSON.parse(stored) as Record<number, StoredApplication>;
     return Object.entries(parsed)
-      .map(([id, app]) => ({
-        id: Number(id),
-        role: app.role,
-        company: app.company,
-        stage: 'Applied',
-        date: new Date(app.appliedAt).toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-        }),
-      }))
+      .map(([id, app]) => {
+        const internship = ALL_INTERNSHIPS.find((item) => item.id === Number(id));
+
+        return {
+          id: Number(id),
+          role: app.role,
+          company: app.company,
+          stage: 'Applied',
+          date: new Date(app.appliedAt).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+          }),
+          location: internship?.location,
+          stack: internship?.stack,
+          tag: internship?.tag,
+          match: internship?.match,
+          category: internship?.category,
+        };
+      })
       .sort((a, b) => b.id - a.id);
   } catch {
     return [];

@@ -325,19 +325,33 @@ export default function DashboardPage() {
                           return (
                             <div
                               key={app.id}
-                              className="flex items-center justify-between rounded-xl border border-[#1c1c1c] bg-black px-4 py-3 cursor-pointer hover:bg-[#121212] hover:border-[#333] transition-all duration-200 gap-3"
+                              className="rounded-xl border border-[#1c1c1c] bg-black p-4 hover:bg-[#121212] hover:border-[#333] transition-all duration-200"
                             >
-                              <div className="min-w-0 flex-1">
-                                <p className="text-white text-sm font-medium truncate">{app.role}</p>
-                                <p className="text-white/40 text-xs mt-0.5">{app.company}</p>
-                              </div>
-                              <div className="flex items-center gap-3 shrink-0">
-                                <p className="text-white/30 text-xs">{app.date}</p>
-                                <span
-                                  className={`text-[10px] font-medium border rounded-full px-3 py-0.5 whitespace-nowrap ${s.border} ${s.text} ${s.bg}`}
-                                >
-                                  {app.stage}
-                                </span>
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-white text-sm font-semibold truncate">{app.role}</p>
+                                  <p className="text-white/40 text-xs mt-1 truncate">{app.company}</p>
+                                  <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-white/40">
+                                    {app.location && (
+                                      <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">{app.location}</span>
+                                    )}
+                                    {app.stack && (
+                                      <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">{app.stack}</span>
+                                    )}
+                                    {app.match && (
+                                      <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-cyan-200">{app.match}</span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-col items-end gap-2 shrink-0">
+                                  <p className="text-white/30 text-xs">{app.date}</p>
+                                  <span
+                                    className={`text-[10px] font-medium border rounded-full px-3 py-0.5 whitespace-nowrap ${s.border} ${s.text} ${s.bg}`}
+                                  >
+                                    {app.stage}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           );
