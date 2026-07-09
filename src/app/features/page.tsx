@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { PageTransition } from '@/components/page-transition';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -28,6 +29,12 @@ const features = [
     title: 'Curated Internship Matching',
     description:
       'We surface only verified, high-quality internship openings that match your stack and experience level. No irrelevant noise — just roles you can actually land.',
+    details: [
+      'Listings are manually verified before they go live — no scraped or expired postings.',
+      'Matching is based on the stack and experience level you set in your profile.',
+    ],
+    href: '/internships',
+    cta: 'Browse matched internships',
   },
   {
     icon: (
@@ -38,6 +45,12 @@ const features = [
     title: 'Application Tracker',
     description:
       'Monitor every application in one dashboard — applied, in review, interview scheduled, offer received. Never lose track of where you stand with a company.',
+    details: [
+      'Every internship you apply to shows up automatically in your dashboard.',
+      'Status updates as recruiters respond, so nothing falls through the cracks.',
+    ],
+    href: '/dashboard',
+    cta: 'Go to your dashboard',
   },
   {
     icon: (
@@ -48,6 +61,10 @@ const features = [
     title: 'Direct Hiring-Team Messaging',
     description:
       'Message the engineers and recruiters behind a posting without going through an agency. Real conversations, faster decisions — no middleman taking a cut.',
+    details: [
+      'Threads open automatically once you apply to a listing.',
+      'Coming soon: real-time chat with typing indicators and read receipts.',
+    ],
   },
   {
     icon: (
@@ -58,6 +75,12 @@ const features = [
     title: 'Skill-Based Filtering',
     description:
       'Filter by programming language, framework, role type, location, and stipend. Find internships that actually fit your current skill set — not just any listing.',
+    details: [
+      'The search bar on Browse Internships already filters by role, company, stack, and location.',
+      'Stipend and remote/on-site filters are next on the roadmap.',
+    ],
+    href: '/internships',
+    cta: 'Try the filters now',
   },
   {
     icon: (
@@ -68,10 +91,16 @@ const features = [
     title: 'Resume & Portfolio Review',
     description:
       'Submit your resume and GitHub profile for async review by senior developers on our team. Get concrete, actionable feedback before you send a single application.',
+    details: [
+      'Reviews typically turn around within 48 hours.',
+      'Submission form is in progress — join the waitlist to get notified.',
+    ],
   },
 ];
 
 export default function FeaturesPage() {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
   return (
     <PageTransition className="min-h-screen pt-48 pb-20 px-6">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -87,8 +116,6 @@ export default function FeaturesPage() {
           </p>
         </section>
 
-
-
         {/* Feature Grid */}
         <section>
           <motion.div
@@ -97,26 +124,79 @@ export default function FeaturesPage() {
             initial="hidden"
             animate="show"
           >
-            {features.map((feature, i) => (
-              <motion.div
-                key={feature.title}
-                variants={itemVariants}
-                className={`group flex flex-col gap-5 rounded-2xl border border-[#1c1c1c] bg-[#090909] p-7 hover:bg-[#121212] hover:border-[#333] transition-all duration-300 ${
-                  // Last item spans full width on odd total count
-                  i === features.length - 1 && features.length % 2 !== 0
-                    ? 'sm:col-span-2'
-                    : ''
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-                    {feature.icon}
+            {features.map((feature, i) => {
+              const isOpen = openIndex === i;
+              return (
+                <motion.div
+                  key={feature.title}
+                  variants={itemVariants}
+                  className={`group flex flex-col gap-5 rounded-2xl border border-[#1c1c1c] bg-[#090909] p-7 hover:bg-[#121212] hover:border-[#333] transition-all duration-300 cursor-pointer ${
+                    i === features.length - 1 && features.length % 2 !== 0
+                      ? 'sm:col-span-2'
+                      : ''
+                  }`}
+                  onClick={() => setOpenIndex(isOpen ? null : i)}
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={isOpen}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setOpenIndex(isOpen ? null : i);
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                      {feature.icon}
+                    </div>
+                    <h2 className="text-white font-semibold text-base leading-snug flex-1">{feature.title}</h2>
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                      className={`w-4 h-4 text-white/40 shrink-0 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
                   </div>
-                  <h2 className="text-white font-semibold text-base leading-snug">{feature.title}</h2>
-                </div>
-                <p className="text-white/50 text-sm leading-relaxed">{feature.description}</p>
-              </motion.div>
-            ))}
+                  <p className="text-white/50 text-sm leading-relaxed">{feature.description}</p>
+
+                  <AnimatePresence>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.25, ease: 'easeOut' }}
+                        className="overflow-hidden"
+                      >
+                        <div className="pt-2 border-t border-white/10 space-y-3">
+                          <ul className="space-y-2 pt-3">
+                            {feature.details.map((d) => (
+                              <li key={d} className="text-white/40 text-xs leading-relaxed flex gap-2">
+                                <span className="text-white/20">—</span>
+                                {d}
+                              </li>
+                            ))}
+                          </ul>
+                          {feature.href && (
+                            <a
+                              href={feature.href}
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-block text-xs font-medium text-white hover:underline"
+                            >
+                              {feature.cta} →
+                            </a>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              );
+            })}
           </motion.div>
         </section>
 
