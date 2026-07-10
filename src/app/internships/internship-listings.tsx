@@ -1,7 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { motion } from 'framer-motion';
+import { useSearchParams } from 'next/navigation';
+import { ApplicationModal } from '@/components/application-modal';
+import { cn } from '@/lib/utils';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -88,7 +91,97 @@ const TAG_COLORS: Record<string, string> = {
 };
 
 export function InternshipListings() {
-  const [query, setQuery] = useState('');
+  return (
+    <Suspense fallback={<div className="text-white/40 text-sm">Loading internships...</div>}>
+      <InternshipListingsInner />
+    </Suspense>
+  );
+}
+
+function InternshipListingsInner() {
+  const searchParams = useSearchParams();
+  const initialSearch = searchParams.get('search') || searchParams.get('query') || searchParams.get('tag') || '';
+  
+  const [query, setQuery] = useState(initialSearch);
+  const [applications, setApplications] = useState<{ id: any; role: string; company: string; stage: string; date: string }[]>([]);
+  const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [selectedInternship, setSelectedInternship] = useState<{ role: string; company: string; id: number | string } | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Sync state with URL params if they change
+  useEffect(() => {
+    setQuery(initialSearch);
+  }, [initialSearch]);
+
+  // Load state from localStorage on mount and register update listener
+  useEffect(() => {
+    const loadState = () => {
+      const storedApps = localStorage.getItem('devstart:applications');
+      if (storedApps) {
+        setApplications(JSON.parse(storedApps));
+      } else {
+        const defaultApps = [
+          { id: 1, role: 'Frontend Engineer Intern', company: 'Luminary Labs', stage: 'Offer Received', date: 'Jul 3' },
+          { id: 2, role: 'Full-Stack Developer Intern', company: 'Stackform', stage: 'Interview Scheduled', date: 'Jul 6' },
+          { id: 3, role: 'Platform Intern', company: 'Nexus Cloud', stage: 'In Review', date: 'Jun 28' },
+          { id: 4, role: 'Backend Intern', company: 'Helix API', stage: 'Applied', date: 'Jun 25' },
+          { id: 5, role: 'DevOps Intern', company: 'Gridline', stage: 'Applied', date: 'Jun 22' },
+        ];
+        localStorage.setItem('devstart:applications', JSON.stringify(defaultApps));
+        setApplications(defaultApps);
+      }
+
+      const storedSaved = localStorage.getItem('devstart:saved_internships');
+      if (storedSaved) {
+        setSavedIds(JSON.parse(storedSaved));
+      }
+    };
+
+    loadState();
+    
+    // Sync updates across components
+    window.addEventListener('devstart:state-change', loadState);
+    return () => window.removeEventListener('devstart:state-change', loadState);
+  }, []);
+
+  const handleApplyClick = (item: typeof ALL_INTERNSHIPS[0]) => {
+    setSelectedInternship({
+      id: `search-${item.id}`,
+      role: item.role,
+      company: item.company,
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleApplySuccess = (role: string, company: string) => {
+    const today = new Date();
+    const formattedDate = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const newApp = {
+      id: `search-${Date.now()}`,
+      role,
+      company,
+      stage: 'Applied',
+      date: formattedDate,
+    };
+    const updatedApps = [newApp, ...applications];
+    setApplications(updatedApps);
+    localStorage.setItem('devstart:applications', JSON.stringify(updatedApps));
+
+    // Notify other components (like Dashboard)
+    window.dispatchEvent(new Event('devstart:state-change'));
+  };
+
+  const toggleBookmark = (id: string) => {
+    let updated: string[];
+    if (savedIds.includes(id)) {
+      updated = savedIds.filter((x) => x !== id);
+    } else {
+      updated = [...savedIds, id];
+    }
+    setSavedIds(updated);
+    localStorage.setItem('devstart:saved_internships', JSON.stringify(updated));
+    window.dispatchEvent(new Event('devstart:state-change'));
+  };
 
   const filtered = ALL_INTERNSHIPS.filter((item) => {
     const q = query.toLowerCase();
@@ -133,55 +226,104 @@ export function InternshipListings() {
         animate="show"
       >
         {filtered.length > 0 ? (
-          filtered.map((item) => (
-            <motion.div
-              key={item.id}
-              variants={itemVariants}
-              className="flex flex-col gap-4 rounded-2xl border border-[#1c1c1c] bg-[#090909] p-6 hover:bg-[#121212] hover:border-[#333] transition-all duration-300"
-            >
-              {/* Header */}
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-white font-semibold text-sm leading-snug">{item.role}</h2>
-                  <p className="text-white/50 text-xs mt-0.5">{item.company}</p>
-                </div>
-                <span
-                  className={`shrink-0 text-xs px-2.5 py-1 rounded-full ${TAG_COLORS[item.tag] ?? 'bg-white/5 text-white/40'}`}
-                >
-                  {item.tag}
-                </span>
-              </div>
+          filtered.map((item) => {
+            const isApplied = applications.some(
+              (app) => app.role === item.role && app.company === item.company
+            );
+            const isBookmarked = savedIds.includes(`search-${item.id}`);
 
-              {/* Location + Stack */}
-              <div className="space-y-1">
-                <p className="text-white/40 text-xs flex items-center gap-1.5">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-3 h-3 shrink-0">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-                  </svg>
-                  {item.location}
-                </p>
-                <p className="text-white/40 text-xs">{item.stack}</p>
-              </div>
-
-              {/* Description */}
-              <p className="text-white/50 text-sm leading-relaxed flex-1">{item.description}</p>
-
-              {/* Apply */}
-              <button
-                id={`apply-btn-${item.id}`}
-                className="w-full rounded-full border border-white/10 bg-transparent text-white/70 text-sm py-2.5 hover:bg-white hover:text-black hover:border-transparent transition-all duration-200 font-medium"
+            return (
+              <motion.div
+                key={item.id}
+                variants={itemVariants}
+                className="flex flex-col gap-4 rounded-2xl border border-[#1c1c1c] bg-[#090909] p-6 hover:bg-[#121212] hover:border-[#333] transition-all duration-300 relative group"
               >
-                Apply Now
-              </button>
-            </motion.div>
-          ))
+                {/* Header */}
+                <div className="flex items-start justify-between gap-3 pr-8">
+                  <div>
+                    <h2 className="text-white font-semibold text-sm leading-snug">{item.role}</h2>
+                    <p className="text-white/50 text-xs mt-0.5">{item.company}</p>
+                  </div>
+                  <span
+                    className={`shrink-0 text-xs px-2.5 py-1 rounded-full ${TAG_COLORS[item.tag] ?? 'bg-white/5 text-white/40'}`}
+                  >
+                    {item.tag}
+                  </span>
+                </div>
+
+                {/* Bookmark Button */}
+                <button
+                  onClick={() => toggleBookmark(`search-${item.id}`)}
+                  className="absolute top-6 right-6 text-white/40 hover:text-white transition-colors p-1.5 rounded-full hover:bg-white/5 cursor-pointer"
+                  title={isBookmarked ? 'Remove from Saved' : 'Save Internship'}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill={isBookmarked ? 'currentColor' : 'none'}
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                    className="w-4 h-4"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" />
+                  </svg>
+                </button>
+
+                {/* Location + Stack */}
+                <div className="space-y-1">
+                  <p className="text-white/40 text-xs flex items-center gap-1.5">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-3 h-3 shrink-0">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                    </svg>
+                    {item.location}
+                  </p>
+                  <p className="text-white/40 text-xs">{item.stack}</p>
+                </div>
+
+                {/* Description */}
+                <p className="text-white/50 text-sm leading-relaxed flex-1">{item.description}</p>
+
+                {/* Apply Button */}
+                <button
+                  id={`apply-btn-${item.id}`}
+                  disabled={isApplied}
+                  onClick={() => handleApplyClick(item)}
+                  className={cn(
+                    "w-full rounded-full border text-sm py-2.5 transition-all duration-200 font-medium cursor-pointer flex items-center justify-center gap-1.5",
+                    isApplied
+                      ? "border-[#1c1c1c] bg-[#121212] text-white/40 cursor-not-allowed"
+                      : "border-white/10 bg-transparent text-white/70 hover:bg-white hover:text-black hover:border-transparent"
+                  )}
+                >
+                  {isApplied ? (
+                    <>
+                      <svg className="w-4 h-4 text-white/40 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>Applied</span>
+                    </>
+                  ) : (
+                    'Apply Now'
+                  )}
+                </button>
+              </motion.div>
+            );
+          })
         ) : (
           <div className="sm:col-span-2 text-center py-16 text-white/40">
             No internships match your search. Try a different term.
           </div>
         )}
       </motion.div>
+
+      {/* Application Form Drawer/Modal */}
+      <ApplicationModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        internship={selectedInternship}
+        onSubmitSuccess={handleApplySuccess}
+      />
     </div>
   );
 }
+
