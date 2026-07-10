@@ -307,7 +307,7 @@ export default function DashboardPage() {
     : '100%';
 
   const dynamicStats = [
-    { label: 'Applied Internships', value: String(apps.length), delta: '+3 this week' },
+    { label: 'Total Applications', value: String(apps.length), delta: '+3 this week' },
     { label: 'Interviews Scheduled', value: String(apps.filter(a => a.stage === 'Interview Scheduled').length), delta: 'Live scheduling' },
     { label: 'Offers Received', value: String(apps.filter(a => a.stage === 'Offer Received').length), delta: 'Congrats! ✉️' },
     { label: 'Profile Strength', value: profileStrength, delta: `${profileSkills.length} skills listed` },
