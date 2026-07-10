@@ -196,9 +196,21 @@ export function SiteNav() {
                   e.stopPropagation();
                   setDropdownOpen(!dropdownOpen);
                 }}
-                className="text-xs lg:text-sm font-medium text-gray-300 hover:text-white transition-colors cursor-pointer select-none py-1"
+                className={cn(
+                  'group relative inline-block text-xs lg:text-sm font-medium leading-5 overflow-hidden cursor-pointer select-none',
+                  dropdownOpen ? 'text-white' : 'text-gray-300 hover:text-white',
+                )}
+                style={{ height: '1.25rem' }}
               >
-                Profile
+                <span className="block transition-transform duration-[400ms] ease-out group-hover:-translate-y-full">
+                  Profile
+                </span>
+                <span
+                  className="absolute left-0 top-full block transition-transform duration-[400ms] ease-out group-hover:-translate-y-full text-white"
+                  aria-hidden="true"
+                >
+                  Profile
+                </span>
               </button>
               
               <AnimatePresence>
