@@ -103,6 +103,10 @@ function InternshipListingsInner() {
   const initialSearch = searchParams.get('search') || searchParams.get('query') || searchParams.get('tag') || '';
   
   const [query, setQuery] = useState(initialSearch);
+  const [filterWorkType, setFilterWorkType] = useState('All');
+  const [filterLocation, setFilterLocation] = useState('All');
+  const [filterStack, setFilterStack] = useState('All');
+
   const [applications, setApplications] = useState<{ id: any; role: string; company: string; stage: string; date: string }[]>([]);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [selectedInternship, setSelectedInternship] = useState<{ role: string; company: string; id: number | string } | null>(null);
@@ -185,12 +189,17 @@ function InternshipListingsInner() {
 
   const filtered = ALL_INTERNSHIPS.filter((item) => {
     const q = query.toLowerCase();
-    return (
+    const matchesSearch = 
       item.role.toLowerCase().includes(q) ||
       item.company.toLowerCase().includes(q) ||
       item.stack.toLowerCase().includes(q) ||
-      item.location.toLowerCase().includes(q)
-    );
+      item.location.toLowerCase().includes(q);
+
+    const matchesWorkType = filterWorkType === 'All' || item.tag === filterWorkType;
+    const matchesLocation = filterLocation === 'All' || item.location.toLowerCase().includes(filterLocation.toLowerCase());
+    const matchesStack = filterStack === 'All' || item.stack.toLowerCase().includes(filterStack.toLowerCase());
+
+    return matchesSearch && matchesWorkType && matchesLocation && matchesStack;
   });
 
   return (
@@ -210,6 +219,57 @@ function InternshipListingsInner() {
           onChange={(e) => setQuery(e.target.value)}
           className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-full text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors"
         />
+      </div>
+
+      {/* Advanced filters selectors row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-[#090909] border border-[#1c1c1c] p-4 rounded-2xl">
+        <div className="space-y-1.5">
+          <label className="text-[9px] uppercase tracking-wider font-bold text-white/50">Work Type</label>
+          <select
+            value={filterWorkType}
+            onChange={(e) => setFilterWorkType(e.target.value)}
+            className="w-full bg-black border border-[#1c1c1c] hover:border-[#333] rounded-xl py-2 px-3 text-white text-xs focus:outline-none transition-colors cursor-pointer"
+          >
+            <option value="All">All Types</option>
+            <option value="Remote">Remote</option>
+            <option value="On-site">On-site</option>
+            <option value="Hybrid">Hybrid</option>
+          </select>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[9px] uppercase tracking-wider font-bold text-white/50">Location</label>
+          <select
+            value={filterLocation}
+            onChange={(e) => setFilterLocation(e.target.value)}
+            className="w-full bg-black border border-[#1c1c1c] hover:border-[#333] rounded-xl py-2 px-3 text-white text-xs focus:outline-none transition-colors cursor-pointer"
+          >
+            <option value="All">All Locations</option>
+            <option value="San Francisco">San Francisco, CA</option>
+            <option value="Austin">Austin, TX</option>
+            <option value="New York">New York, NY</option>
+            <option value="London">London, UK</option>
+            <option value="Remote">Remote</option>
+          </select>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[9px] uppercase tracking-wider font-bold text-white/50">Technology</label>
+          <select
+            value={filterStack}
+            onChange={(e) => setFilterStack(e.target.value)}
+            className="w-full bg-black border border-[#1c1c1c] hover:border-[#333] rounded-xl py-2 px-3 text-white text-xs focus:outline-none transition-colors cursor-pointer"
+          >
+            <option value="All">All Tech Stacks</option>
+            <option value="React">React</option>
+            <option value="Next.js">Next.js</option>
+            <option value="TypeScript">TypeScript</option>
+            <option value="Go">Go</option>
+            <option value="Python">Python</option>
+            <option value="Kubernetes">Kubernetes</option>
+            <option value="Terraform">Terraform</option>
+          </select>
+        </div>
       </div>
 
       {/* Results count */}
@@ -326,4 +386,3 @@ function InternshipListingsInner() {
     </div>
   );
 }
-

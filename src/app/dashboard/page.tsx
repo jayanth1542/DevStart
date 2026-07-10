@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { ApplicationModal } from '@/components/application-modal';
 import { InboxDrawer } from '@/components/inbox-drawer';
 import { ResumeUploadModal } from '@/components/resume-upload-modal';
+import { ProfileDrawer } from '@/components/profile-drawer';
 
 /* -------------------------------------------------------------------------- */
 /*  Mock / placeholder data                                                    */
@@ -19,32 +20,30 @@ const recommendedInternships = [
     role: 'Frontend Engineer Intern',
     company: 'Luminary Labs',
     tags: ['React', 'TypeScript', 'Remote'],
-    match: '97% match — strong React & TypeScript alignment with your profile.',
   },
   {
     id: 2,
     role: 'Full-Stack Developer Intern',
     company: 'Stackform',
     tags: ['Node.js', 'PostgreSQL', 'Hybrid'],
-    match: '91% match — your Node.js and expertise with PostgreSql makes up for a great fit here.',
   },
   {
     id: 3,
     role: 'Backend Engineer Intern',
     company: 'Orbital Systems',
     tags: ['Python', 'FastAPI', 'On-site'],
-    match: '88% match — your API projects stand out for this role.',
   },
   {
     id: 4,
     role: 'Dev Tools Engineer Intern',
     company: 'Codeshift',
     tags: ['Rust', 'CLI', 'Remote'],
-    match: '82% match — CLI projects in your portfolio are a great signal.',
   },
 ];
 
 type PipelineStage = 'Applied' | 'In Review' | 'Interview Scheduled' | 'Offer Received';
+
+const STAGES: PipelineStage[] = ['Applied', 'In Review', 'Interview Scheduled', 'Offer Received'];
 
 const stageStyle: Record<PipelineStage, { border: string; text: string; bg: string }> = {
   Applied:               { border: 'border-[#333]',   text: 'text-white/50', bg: 'bg-white/5' },
@@ -113,16 +112,19 @@ const itemVariants = {
 export default function DashboardPage() {
   const router = useRouter();
   const [activeStage, setActiveStage] = useState<PipelineStage | 'All'>('All');
+  const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
   
   // Real dynamic state
   const [apps, setApps] = useState<{ id: any; role: string; company: string; stage: PipelineStage; date: string }[]>([]);
   const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [profileSkills, setProfileSkills] = useState<string[]>([]);
   const [selectedInternship, setSelectedInternship] = useState<{ role: string; company: string; id: number | string } | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Inbox & Resume Drawer / Modal controls
+  // Inbox, Profile & Resume Drawer / Modal controls
   const [isInboxOpen, setIsInboxOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [resume, setResume] = useState<{ filename: string; size: string; uploadedAt: string; status: 'analyzing' | 'reviewed'; suggestions?: string[] } | null>(null);
 
@@ -152,6 +154,15 @@ export default function DashboardPage() {
       const storedResume = localStorage.getItem('devstart:resume');
       if (storedResume) {
         setResume(JSON.parse(storedResume));
+      }
+
+      const storedSkills = localStorage.getItem('devstart:profile_skills');
+      if (storedSkills) {
+        setProfileSkills(JSON.parse(storedSkills));
+      } else {
+        const defaultSkills = ['React', 'TypeScript', 'Node.js', 'PostgreSQL'];
+        localStorage.setItem('devstart:profile_skills', JSON.stringify(defaultSkills));
+        setProfileSkills(defaultSkills);
       }
     };
 
@@ -209,12 +220,12 @@ export default function DashboardPage() {
     window.dispatchEvent(new Event('devstart:state-change'));
   };
 
-  const handleResumeUploadSuccess = (filename: string) => {
+  const handleResumeUploadSuccess = (filename: string, size: string) => {
     const today = new Date();
     const formattedDate = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     const newResume = {
       filename,
-      size: '242 KB',
+      size,
       uploadedAt: formattedDate,
       status: 'analyzing' as const
     };
@@ -223,16 +234,83 @@ export default function DashboardPage() {
     window.dispatchEvent(new Event('devstart:state-change'));
   };
 
+  // Drag and Drop Handlers
+  const handleDragStart = (e: React.DragEvent, appId: string | number) => {
+    e.dataTransfer.setData('text/plain', String(appId));
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, targetStage: PipelineStage) => {
+    e.preventDefault();
+    const appId = e.dataTransfer.getData('text/plain');
+    const updated = apps.map(app => {
+      if (String(app.id) === appId) {
+        return { ...app, stage: targetStage };
+      }
+      return app;
+    });
+    setApps(updated);
+    localStorage.setItem('devstart:applications', JSON.stringify(updated));
+    window.dispatchEvent(new Event('devstart:state-change'));
+  };
+
+  // Dynamic matching calculators
+  const getDynamicMatch = (id: number) => {
+    const userLower = profileSkills.map(s => s.toLowerCase());
+    if (id === 1) {
+      const hasReact = userLower.includes('react');
+      const hasTS = userLower.includes('typescript');
+      if (hasReact && hasTS) return { score: '97%', desc: '97% match — strong React & TypeScript alignment with your profile.' };
+      if (hasReact || hasTS) return { score: '64%', desc: '64% match — partially aligned. Add both React and TypeScript to improve.' };
+      return { score: '18%', desc: '18% match — low alignment. Consider adding React & TypeScript.' };
+    }
+    if (id === 2) {
+      const hasNode = userLower.includes('node.js') || userLower.includes('node');
+      const hasPostgres = userLower.includes('postgresql') || userLower.includes('postgres');
+      if (hasNode && hasPostgres) return { score: '91%', desc: '91% match — Node.js and PostgreSQL matches your profile perfectly.' };
+      if (hasNode || hasPostgres) return { score: '58%', desc: '58% match — partially aligned. Add PostgreSQL and Node.js.' };
+      return { score: '15%', desc: '15% match — low alignment. Learn Node.js & PostgreSQL to apply.' };
+    }
+    if (id === 3) {
+      const hasPython = userLower.includes('python');
+      const hasFastAPI = userLower.includes('fastapi');
+      if (hasPython && hasFastAPI) return { score: '98%', desc: '98% match — your API projects stand out for this role.' };
+      if (hasPython || hasFastAPI) return { score: '55%', desc: '55% match — partially aligned. Build FastAPI and Python projects.' };
+      return { score: '12%', desc: '12% match — low alignment. Learn Python & FastAPI.' };
+    }
+    if (id === 4) {
+      const hasRust = userLower.includes('rust');
+      const hasCLI = userLower.includes('cli');
+      if (hasRust && hasCLI) return { score: '98%', desc: '98% match — Rust and CLI tools in your portfolio are a perfect signal.' };
+      if (hasRust || hasCLI) return { score: '62%', desc: '62% match — partially aligned. Build CLI tools in Rust.' };
+      return { score: '10%', desc: '10% match — low alignment. Add Rust to your skills profile.' };
+    }
+    return { score: '50%', desc: '50% match.' };
+  };
+
   const filteredApplications = activeStage === 'All'
     ? apps
     : apps.filter(app => app.stage === activeStage);
 
-  // Dynamic statistics row
+  // Dynamic Profile Strength
+  const profileStrength = profileSkills.length === 0
+    ? '0%'
+    : profileSkills.length < 3
+    ? '40%'
+    : profileSkills.length < 5
+    ? '75%'
+    : profileSkills.length < 8
+    ? '90%'
+    : '100%';
+
   const dynamicStats = [
     { label: 'Applied Internships', value: String(apps.length), delta: '+3 this week' },
     { label: 'Interviews Scheduled', value: String(apps.filter(a => a.stage === 'Interview Scheduled').length), delta: 'Live scheduling' },
     { label: 'Offers Received', value: String(apps.filter(a => a.stage === 'Offer Received').length), delta: 'Congrats! ✉️' },
-    { label: 'Profile Strength', value: '84%', delta: '+6% since last week' },
+    { label: 'Profile Strength', value: profileStrength, delta: `${profileSkills.length} skills listed` },
     { label: 'Saved Internships', value: String(savedIds.length), delta: 'updated live' },
   ];
 
@@ -385,6 +463,7 @@ export default function DashboardPage() {
                       (app) => app.role === item.role && app.company === item.company
                     );
                     const isBookmarked = savedIds.includes(`rec-${item.id}`);
+                    const matchInfo = getDynamicMatch(item.id);
 
                     return (
                       <motion.div
@@ -424,7 +503,7 @@ export default function DashboardPage() {
                             </span>
                           ))}
                         </div>
-                        <p className="text-white/40 text-xs leading-relaxed">{item.match}</p>
+                        <p className="text-white/40 text-xs leading-relaxed">{matchInfo.desc}</p>
                         <button
                           disabled={isApplied}
                           onClick={() => {
@@ -462,91 +541,185 @@ export default function DashboardPage() {
               {/* 4. Application Tracker ------------------------------------ */}
               <div className="rounded-2xl border border-[#1c1c1c] bg-[#090909] p-6 space-y-5">
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="space-y-1">
                     <p className="text-white/40 text-xs uppercase tracking-[0.15em] font-medium">Pipeline</p>
-                    <h2 className="text-[1.3rem] font-bold leading-tight tracking-tight text-white mt-0.5">
+                    <h2 className="text-[1.3rem] font-bold leading-tight tracking-tight text-white">
                       Application Tracker
                     </h2>
                   </div>
-                  {activeStage !== 'All' && (
-                    <button
-                      onClick={() => setActiveStage('All')}
-                      className="text-xs text-white/50 hover:text-white border border-[#1c1c1c] hover:border-[#333] rounded-full px-3 py-1.5 transition-all duration-200 cursor-pointer"
-                    >
-                      Reset Filter
-                    </button>
-                  )}
-                </div>
-
-                {/* Stage switcher interactive tiles */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {(['Applied', 'In Review', 'Interview Scheduled', 'Offer Received'] as PipelineStage[]).map((stage) => {
-                    const count = apps.filter((app) => app.stage === stage).length;
-                    const isActive = activeStage === stage;
-                    return (
+                  
+                  {/* Kanban Switcher Buttons */}
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5 border border-[#1c1c1c] bg-black p-1 rounded-full shrink-0">
                       <button
-                        key={stage}
-                        onClick={() => setActiveStage(isActive ? 'All' : stage)}
+                        onClick={() => setViewMode('list')}
                         className={cn(
-                          "text-left p-4 rounded-xl border transition-all duration-300 cursor-pointer relative overflow-hidden group",
-                          isActive
-                            ? "bg-white text-black border-transparent"
-                            : "border-[#1c1c1c] bg-black text-white/50 hover:bg-[#121212] hover:border-[#333] hover:text-white"
+                          "text-[9px] uppercase font-bold tracking-wider px-3 py-1.5 rounded-full transition-all cursor-pointer",
+                          viewMode === 'list' ? "bg-white text-black" : "text-white/40 hover:text-white"
                         )}
                       >
-                        <p className={cn(
-                          "text-[10px] uppercase tracking-wider font-semibold",
-                          isActive ? "text-black/60" : "text-white/40 group-hover:text-white/60"
-                        )}>
-                          {stage}
-                        </p>
-                        <p className="text-xl font-bold mt-2 leading-none">{count}</p>
+                        List
                       </button>
-                    );
-                  })}
+                      <button
+                        onClick={() => setViewMode('board')}
+                        className={cn(
+                          "text-[9px] uppercase font-bold tracking-wider px-3 py-1.5 rounded-full transition-all cursor-pointer",
+                          viewMode === 'board' ? "bg-white text-black" : "text-white/40 hover:text-white"
+                        )}
+                      >
+                        Board
+                      </button>
+                    </div>
+
+                    {activeStage !== 'All' && viewMode === 'list' && (
+                      <button
+                        onClick={() => setActiveStage('All')}
+                        className="text-xs text-white/50 hover:text-white border border-[#1c1c1c] hover:border-[#333] rounded-full px-3 py-1.5 transition-all duration-200 cursor-pointer"
+                      >
+                        Reset Filter
+                      </button>
+                    )}
+                  </div>
                 </div>
 
-                <div className="relative min-h-[220px]">
-                  <AnimatePresence mode="wait">
+                <AnimatePresence mode="wait">
+                  {viewMode === 'list' ? (
                     <motion.div
-                      key={activeStage}
-                      initial={{ opacity: 0, x: -100 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 100 }}
-                      transition={{ duration: 0.4, ease: "easeOut" }}
-                      className="space-y-2 absolute inset-x-0 top-0"
+                      key="list-view"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="space-y-5"
                     >
-                      {filteredApplications.length > 0 ? (
-                        filteredApplications.map((app) => {
-                          const s = stageStyle[app.stage];
+                      {/* Stage switcher interactive tiles */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {(['Applied', 'In Review', 'Interview Scheduled', 'Offer Received'] as PipelineStage[]).map((stage) => {
+                          const count = apps.filter((app) => app.stage === stage).length;
+                          const isActive = activeStage === stage;
                           return (
-                            <div
-                              key={app.id}
-                              className="flex items-center justify-between rounded-xl border border-[#1c1c1c] bg-black px-4 py-3 cursor-pointer hover:bg-[#121212] hover:border-[#333] transition-all duration-200 gap-3"
+                            <button
+                              key={stage}
+                              onClick={() => setActiveStage(isActive ? 'All' : stage)}
+                              className={cn(
+                                "text-left p-4 rounded-xl border transition-all duration-300 cursor-pointer relative overflow-hidden group",
+                                isActive
+                                  ? "bg-white text-black border-transparent"
+                                  : "border-[#1c1c1c] bg-black text-white/50 hover:bg-[#121212] hover:border-[#333] hover:text-white"
+                              )}
                             >
-                              <div className="min-w-0 flex-1">
-                                <p className="text-white text-sm font-medium truncate">{app.role}</p>
-                                <p className="text-white/40 text-xs mt-0.5">{app.company}</p>
-                              </div>
-                              <div className="flex items-center gap-3 shrink-0">
-                                <p className="text-white/30 text-xs">{app.date}</p>
-                                <span
-                                  className={`text-[10px] font-medium border rounded-full px-3 py-0.5 whitespace-nowrap ${s.border} ${s.text} ${s.bg}`}
-                                >
-                                  {app.stage}
-                                </span>
-                              </div>
-                            </div>
+                              <p className={cn(
+                                "text-[10px] uppercase tracking-wider font-semibold",
+                                isActive ? "text-black/60" : "text-white/40 group-hover:text-white/60"
+                              )}>
+                                {stage}
+                              </p>
+                              <p className="text-xl font-bold mt-2 leading-none">{count}</p>
+                            </button>
                           );
-                        })
-                      ) : (
-                        <div className="flex flex-col items-center justify-center border border-dashed border-[#1c1c1c] rounded-xl py-12 px-4 text-center">
-                          <p className="text-white/30 text-sm">No applications in this stage yet.</p>
+                        })}
+                      </div>
+
+                      <div className="relative min-h-[220px]">
+                        <div className="space-y-2 absolute inset-x-0 top-0">
+                          {filteredApplications.length > 0 ? (
+                            filteredApplications.map((app) => {
+                              const s = stageStyle[app.stage];
+                              return (
+                                <div
+                                  key={app.id}
+                                  className="flex items-center justify-between rounded-xl border border-[#1c1c1c] bg-black px-4 py-3 cursor-pointer hover:bg-[#121212] hover:border-[#333] transition-all duration-200 gap-3"
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-white text-sm font-medium truncate">{app.role}</p>
+                                    <p className="text-white/40 text-xs mt-0.5">{app.company}</p>
+                                  </div>
+                                  <div className="flex items-center gap-3 shrink-0">
+                                    <p className="text-white/30 text-xs">{app.date}</p>
+                                    <span
+                                      className={`text-[10px] font-medium border rounded-full px-3 py-0.5 whitespace-nowrap ${s.border} ${s.text} ${s.bg}`}
+                                    >
+                                      {app.stage}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="flex flex-col items-center justify-center border border-dashed border-[#1c1c1c] rounded-xl py-12 px-4 text-center">
+                              <p className="text-white/30 text-sm">No applications in this stage yet.</p>
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </div>
                     </motion.div>
-                  </AnimatePresence>
-                </div>
+                  ) : (
+                    // Interactive Kanban Columns Board View with HTML5 Drag & Drop
+                    <motion.div
+                      key="board-view"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pb-4 overflow-x-auto"
+                    >
+                      {STAGES.map((stage) => {
+                        const stageApps = apps.filter(app => app.stage === stage);
+                        return (
+                          <div
+                            key={stage}
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, stage)}
+                            className="rounded-xl border border-[#1c1c1c] bg-black/40 p-4 min-h-[300px] flex flex-col space-y-3 transition-colors border-dashed hover:border-[#333] hover:bg-black/60"
+                          >
+                            {/* Column Header */}
+                            <div className="flex items-center justify-between pb-2 border-b border-[#1c1c1c] shrink-0">
+                              <span className="text-[9px] uppercase tracking-wider font-bold text-white/50 truncate max-w-[80%]">{stage}</span>
+                              <span className="text-[9px] text-white bg-white/10 px-2 py-0.5 rounded-full font-bold">{stageApps.length}</span>
+                            </div>
+
+                            {/* Column Cards */}
+                            <div className="flex-1 space-y-2 flex flex-col min-h-[220px]">
+                              {stageApps.map((app) => (
+                                <div
+                                  key={app.id}
+                                  draggable
+                                  onDragStart={(e) => handleDragStart(e, app.id)}
+                                  className="rounded-lg border border-[#1c1c1c] bg-[#090909] p-3 cursor-grab active:cursor-grabbing hover:border-[#333] hover:bg-[#121212] transition-all space-y-1"
+                                >
+                                  <p className="text-white text-xs font-bold truncate pr-3">{app.role}</p>
+                                  <p className="text-white/40 text-[9px] truncate">{app.company}</p>
+                                  
+                                  <div className="flex items-center justify-between pt-2">
+                                    <span className="text-[8px] text-white/30">{app.date}</span>
+                                    
+                                    {/* Stages dropdown for touch devices / accessibility */}
+                                    <select
+                                      value={app.stage}
+                                      onChange={(e) => {
+                                        const updated = apps.map(a => a.id === app.id ? { ...a, stage: e.target.value as PipelineStage } : a);
+                                        setApps(updated);
+                                        localStorage.setItem('devstart:applications', JSON.stringify(updated));
+                                        window.dispatchEvent(new Event('devstart:state-change'));
+                                      }}
+                                      className="bg-black text-white/40 text-[8px] border border-[#1c1c1c] rounded px-1 py-0.5 focus:outline-none cursor-pointer hover:text-white"
+                                    >
+                                      {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+                                  </div>
+                                </div>
+                              ))}
+
+                              {stageApps.length === 0 && (
+                                <div className="flex-1 flex items-center justify-center border border-dashed border-[#1c1c1c]/50 rounded-lg py-12 text-center text-white/20 text-[9px] italic select-none">
+                                  Drop here
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
 
@@ -695,6 +868,8 @@ export default function DashboardPage() {
                           setIsInboxOpen(true);
                         } else if (action.label === 'Upload Resume') {
                           setIsResumeModalOpen(true);
+                        } else if (action.label === 'Update Profile') {
+                          setIsProfileOpen(true);
                         } else if (action.href !== '#') {
                           router.push(action.href);
                         }
@@ -731,6 +906,12 @@ export default function DashboardPage() {
         isOpen={isResumeModalOpen}
         onClose={() => setIsResumeModalOpen(false)}
         onUploadSuccess={handleResumeUploadSuccess}
+      />
+
+      {/* Profile Editor Slide-over Drawer */}
+      <ProfileDrawer
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
       />
     </div>
   );
