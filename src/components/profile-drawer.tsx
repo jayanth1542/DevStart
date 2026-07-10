@@ -12,6 +12,7 @@ const DEFAULT_SKILLS = ['React', 'TypeScript', 'Node.js', 'PostgreSQL'];
 
 export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
   const [name, setName] = useState('User');
+  const [userPicture, setUserPicture] = useState('');
   const [title, setTitle] = useState('Software Engineer Intern');
   const [skills, setSkills] = useState<string[]>([]);
   const [newSkill, setNewSkill] = useState('');
@@ -19,19 +20,33 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
   useEffect(() => {
     if (isOpen) {
       if (typeof window !== 'undefined') {
-        const storedName = localStorage.getItem('userEmail');
-        if (storedName) {
-          // Extract name from email as placeholder
-          setName(storedName.split('@')[0]);
-        }
-        
+        const storedName = localStorage.getItem('userName');
+        const storedEmail = localStorage.getItem('userEmail');
+        const picture = localStorage.getItem('userPicture');
         const storedSkills = localStorage.getItem('devstart:profile_skills');
-        if (storedSkills) {
-          setSkills(JSON.parse(storedSkills));
-        } else {
-          localStorage.setItem('devstart:profile_skills', JSON.stringify(DEFAULT_SKILLS));
-          setSkills(DEFAULT_SKILLS);
-        }
+
+        setTimeout(() => {
+          if (storedName) {
+            setName(storedName);
+          } else if (storedEmail) {
+            setName(storedEmail.split('@')[0]);
+          } else {
+            setName('User');
+          }
+
+          if (picture) {
+            setUserPicture(picture);
+          } else {
+            setUserPicture('');
+          }
+          
+          if (storedSkills) {
+            setSkills(JSON.parse(storedSkills));
+          } else {
+            localStorage.setItem('devstart:profile_skills', JSON.stringify(DEFAULT_SKILLS));
+            setSkills(DEFAULT_SKILLS);
+          }
+        }, 0);
       }
     }
   }, [isOpen]);
@@ -95,9 +110,17 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
             <div className="flex-1 overflow-y-auto space-y-6 pr-2">
               {/* Profile card preview */}
               <div className="flex items-center gap-4 bg-black border border-[#1c1c1c] rounded-xl p-4">
-                <div className="w-12 h-12 rounded-full border border-[#333] bg-[#121212] flex items-center justify-center text-white/70 font-bold uppercase">
-                  {name.substring(0, 2)}
-                </div>
+                {userPicture ? (
+                  <img
+                    src={userPicture}
+                    alt={name}
+                    className="w-12 h-12 rounded-full object-cover border border-[#333]"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full border border-[#333] bg-[#121212] flex items-center justify-center text-white/70 font-bold uppercase text-sm">
+                    {name.substring(0, 2)}
+                  </div>
+                )}
                 <div>
                   <h4 className="text-sm font-semibold text-white capitalize">{name}</h4>
                   <p className="text-[10px] text-white/40 mt-0.5">{title}</p>

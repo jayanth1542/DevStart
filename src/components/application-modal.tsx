@@ -24,13 +24,22 @@ export function ApplicationModal({ isOpen, onClose, internship, onSubmitSuccess 
 
   useEffect(() => {
     if (isOpen) {
-      if (typeof window !== 'undefined') {
-        const storedEmail = localStorage.getItem('userEmail');
+      const storedEmail = typeof window !== 'undefined' ? localStorage.getItem('userEmail') : null;
+      const storedName = typeof window !== 'undefined' ? localStorage.getItem('userName') : null;
+
+      setTimeout(() => {
         if (storedEmail) setEmail(storedEmail);
-      }
-      setIsSuccess(false);
-      setIsSubmitting(false);
-      setPitch('');
+        if (storedName) {
+          setName(storedName);
+        } else if (storedEmail) {
+          setName(storedEmail.split('@')[0]);
+        } else {
+          setName('User');
+        }
+        setIsSuccess(false);
+        setIsSubmitting(false);
+        setPitch('');
+      }, 0);
     }
   }, [isOpen]);
 

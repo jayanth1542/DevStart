@@ -54,24 +54,33 @@ export function SiteNav() {
   const shapeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auth State Syncing
+  const [mounted, setMounted] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userEmail, setUserEmail] = useState('');
+  const [userName, setUserName] = useState('User');
+  const [userPicture, setUserPicture] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Check initial auth state
-    const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
-    setIsLoggedIn(loggedIn);
-    setUserEmail(localStorage.getItem('userEmail') || 'user@example.com');
-
     // Sync auth state changes across the application
     const checkAuth = () => {
       const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
-      const email = localStorage.getItem('userEmail') || 'user@example.com';
+      const email = localStorage.getItem('userEmail') || '';
+      const name = localStorage.getItem('userName') || 'User';
+      const picture = localStorage.getItem('userPicture') || '';
+      
       setIsLoggedIn(loggedIn);
       setUserEmail(email);
+      setUserName(name);
+      setUserPicture(picture);
     };
+
+    // Set mounted and auth state asynchronously to prevent hydration mismatch
+    setTimeout(() => {
+      checkAuth();
+      setMounted(true);
+    }, 0);
 
     const interval = setInterval(checkAuth, 300);
 
@@ -94,7 +103,7 @@ export function SiteNav() {
     if (shapeTimeoutRef.current) clearTimeout(shapeTimeoutRef.current);
 
     if (isOpen) {
-      setHeaderShapeClass('rounded-xl');
+      setTimeout(() => setHeaderShapeClass('rounded-xl'), 0);
     } else {
       shapeTimeoutRef.current = setTimeout(() => {
         setHeaderShapeClass('rounded-full');
@@ -109,13 +118,16 @@ export function SiteNav() {
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userEmail');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userPicture');
+    localStorage.removeItem('authProvider');
     setIsLoggedIn(false);
     setDropdownOpen(false);
     router.push('/?flow=login');
   };
 
   const logoElement = (
-    <Link href={isLoggedIn ? '/dashboard' : '/'} className="flex items-center gap-2 group" aria-label="Home">
+    <Link href={(mounted && isLoggedIn) ? '/dashboard' : '/'} className="flex items-center gap-2 group" aria-label="Home">
       <div className="relative w-5 h-5 flex items-center justify-center shrink-0">
         <div className="absolute inset-0 bg-white/20 rounded-full blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         <span className="absolute w-1.5 h-1.5 rounded-full bg-white top-0 left-1/2 transform -translate-x-1/2 transition-all duration-300 group-hover:-translate-y-0.5" />
@@ -130,7 +142,7 @@ export function SiteNav() {
     </Link>
   );
 
-  const navLinksData = isLoggedIn
+  const navLinksData = (mounted && isLoggedIn)
     ? [
         { label: 'Dashboard', href: '/dashboard' },
         { label: 'Browse Internships', href: '/internships' },
@@ -197,7 +209,7 @@ export function SiteNav() {
         </nav>
 
         <div className="hidden md:flex items-center gap-1.5 lg:gap-3">
-          {isLoggedIn ? (
+          {(mounted && isLoggedIn) ? (
             <div className="flex items-center relative" ref={dropdownRef}>
               <button
                 onClick={(e) => {
@@ -234,14 +246,20 @@ export function SiteNav() {
                     <div className="absolute -top-[6px] right-6 w-2.5 h-2.5 bg-[#090909] border-t border-l border-[#333] rotate-45" />
 
                     <div className="flex items-center gap-3 min-w-0">
-                      {/* Default User SVG icon */}
-                      <div className="w-8 h-8 rounded-full border border-[#1c1c1c] bg-[#121212] flex items-center justify-center text-white/70 shrink-0">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                      </div>
+                      {/* User Profile avatar */}
+                      {userPicture ? (
+                        <img
+                          src={userPicture}
+                          alt={userName}
+                          className="w-8 h-8 rounded-full object-cover border border-[#1c1c1c] shrink-0"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full border border-[#1c1c1c] bg-[#121212] flex items-center justify-center text-white/70 shrink-0 font-semibold text-xs uppercase">
+                          {userName.substring(0, 2)}
+                        </div>
+                      )}
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-white truncate">User</p>
+                        <p className="text-sm font-semibold text-white truncate capitalize">{userName}</p>
                         <p className="text-[10px] text-white/40 truncate">{userEmail}</p>
                       </div>
                     </div>
@@ -306,16 +324,22 @@ export function SiteNav() {
           ))}
         </nav>
         <div className="flex flex-col items-center space-y-4 mt-4 w-full">
-          {isLoggedIn ? (
+          {(mounted && isLoggedIn) ? (
             <div className="w-full flex flex-col items-center gap-3 border-t border-[#1c1c1c] pt-4">
               <div className="flex items-center gap-3 w-full justify-center">
-                <div className="w-8 h-8 rounded-full border border-[#1c1c1c] bg-[#121212] flex items-center justify-center text-white/70">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
+                {userPicture ? (
+                  <img
+                    src={userPicture}
+                    alt={userName}
+                    className="w-8 h-8 rounded-full object-cover border border-[#1c1c1c] shrink-0"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full border border-[#1c1c1c] bg-[#121212] flex items-center justify-center text-white/70 shrink-0 font-semibold text-xs uppercase">
+                    {userName.substring(0, 2)}
+                  </div>
+                )}
                 <div className="text-left">
-                  <p className="text-sm font-semibold text-white">User</p>
+                  <p className="text-sm font-semibold text-white capitalize">{userName}</p>
                   <p className="text-xs text-white/40">{userEmail}</p>
                 </div>
               </div>
