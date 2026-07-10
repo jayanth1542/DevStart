@@ -130,12 +130,20 @@ export function SiteNav() {
     </Link>
   );
 
-  const navLinksData = [
-    { label: 'About Us', href: '/about' },
-    { label: 'Features', href: '/features' },
-    { label: 'Browse Internships', href: '/internships' },
-    { label: 'FAQs', href: '/faq' },
-  ];
+  const navLinksData = isLoggedIn
+    ? [
+        { label: 'Dashboard', href: '/dashboard' },
+        { label: 'Browse Internships', href: '/internships' },
+        { label: 'About Us', href: '/about' },
+        { label: 'Features', href: '/features' },
+        { label: 'FAQs', href: '/faq' },
+      ]
+    : [
+        { label: 'About Us', href: '/about' },
+        { label: 'Features', href: '/features' },
+        { label: 'Browse Internships', href: '/internships' },
+        { label: 'FAQs', href: '/faq' },
+      ];
 
   // Auth buttons: navigate to root with flow query param
   const loginButton = (

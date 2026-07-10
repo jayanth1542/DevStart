@@ -57,6 +57,39 @@ const DEFAULT_THREADS: ChatThread[] = [
   }
 ];
 
+const COMPANY_RECRUITERS: Record<string, { from: string; avatar: string; msg: string }> = {
+  'veritas labs': {
+    from: 'Elena Rostova',
+    avatar: 'ER',
+    msg: 'Hi there! We received your application for the Frontend position at Veritas. Your resume looks very interesting. We are reviewing it and will get back to you shortly!'
+  },
+  'datastream inc': {
+    from: 'Alex Mercer',
+    avatar: 'AM',
+    msg: 'Thanks for your application to join the Backend data engineering team at DataStream! We will review and follow up with coding challenge instructions if selected.'
+  },
+  'synthos ai': {
+    from: 'Dr. Karen Vance',
+    avatar: 'KV',
+    msg: 'Thank you for your interest in our ML Research internship at Synthos AI. We are reviewing candidates and expect to finalize interview shortlists by the end of next week.'
+  },
+  'latchkey': {
+    from: 'Tom Sawyer',
+    avatar: 'TS',
+    msg: 'Hey! Thanks for applying to Latchkey. We love build-first engineers. We will check out your GitHub portfolio and drop you a line soon.'
+  },
+  'cloudbridge': {
+    from: 'Sarah Jenkins',
+    avatar: 'SJ',
+    msg: 'Hello! Thank you for applying for the DevOps / Platform role. We have received your application at CloudBridge and will contact you if your skills match our team requirements.'
+  },
+  'finedge': {
+    from: 'David Miller',
+    avatar: 'DM',
+    msg: 'Dear candidate, thank you for applying to FinEdge. Our talent acquisition team is screening profiles and will send follow-up notifications in due course.'
+  }
+};
+
 const CALENDAR_SLOTS = [
   { id: 'slot-1', date: 'Monday, Jul 13', time: '10:00 AM EST' },
   { id: 'slot-2', date: 'Tuesday, Jul 14', time: '2:00 PM EST' },
@@ -70,18 +103,53 @@ export function InboxDrawer({ isOpen, onClose }: InboxDrawerProps) {
   const [showScheduler, setShowScheduler] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Load chat state from localStorage
+  // Load chat state from localStorage and match with applications
   useEffect(() => {
     if (isOpen) {
-      const stored = localStorage.getItem('devstart:chat_threads');
-      if (stored) {
-        setThreads(JSON.parse(stored));
-      } else {
-        localStorage.setItem('devstart:chat_threads', JSON.stringify(DEFAULT_THREADS));
-        setThreads(DEFAULT_THREADS);
-      }
-      setShowScheduler(false);
-      setReplyText('');
+      const loadState = () => {
+        const storedApps = localStorage.getItem('devstart:applications');
+        const currentApps = storedApps ? JSON.parse(storedApps) : [];
+
+        const stored = localStorage.getItem('devstart:chat_threads');
+        let currentThreads: ChatThread[] = stored ? JSON.parse(stored) : DEFAULT_THREADS;
+
+        // Auto-generate threads for new applications
+        let threadsChanged = false;
+        currentApps.forEach((app: any) => {
+          const companyLower = app.company.toLowerCase();
+          const threadExists = currentThreads.some(t => t.company.toLowerCase() === companyLower);
+          
+          if (!threadExists) {
+            const recruiter = COMPANY_RECRUITERS[companyLower] || {
+              from: 'Recruiting Team',
+              avatar: 'HR',
+              msg: `Hello! Thank you for applying to ${app.company} for the ${app.role} role. We have received your profile and are currently evaluating it.`
+            };
+
+            const newThread: ChatThread = {
+              id: `auto-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+              from: recruiter.from,
+              company: app.company,
+              role: app.role,
+              avatar: recruiter.avatar,
+              messages: [
+                { sender: 'recruiter', text: recruiter.msg, time: 'Just now' }
+              ]
+            };
+            currentThreads = [newThread, ...currentThreads];
+            threadsChanged = true;
+          }
+        });
+
+        if (threadsChanged) {
+          localStorage.setItem('devstart:chat_threads', JSON.stringify(currentThreads));
+        }
+        setThreads(currentThreads);
+      };
+
+      loadState();
+      window.addEventListener('devstart:state-change', loadState);
+      return () => window.removeEventListener('devstart:state-change', loadState);
     }
   }, [isOpen]);
 
@@ -165,7 +233,6 @@ export function InboxDrawer({ isOpen, onClose }: InboxDrawerProps) {
     if (storedApps && activeThread) {
       const apps = JSON.parse(storedApps);
       const updatedApps = apps.map((app: any) => {
-        // Match by company name
         if (app.company.toLowerCase() === activeThread.company.toLowerCase()) {
           return {
             ...app,
@@ -175,7 +242,6 @@ export function InboxDrawer({ isOpen, onClose }: InboxDrawerProps) {
         return app;
       });
       
-      // If application doesn't exist, we add a mock one
       const exists = apps.some((app: any) => app.company.toLowerCase() === activeThread.company.toLowerCase());
       if (!exists) {
         updatedApps.unshift({
@@ -188,7 +254,6 @@ export function InboxDrawer({ isOpen, onClose }: InboxDrawerProps) {
       }
 
       localStorage.setItem('devstart:applications', JSON.stringify(updatedApps));
-      // Notify stats dynamically
       window.dispatchEvent(new Event('devstart:state-change'));
     }
 
