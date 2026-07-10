@@ -1,21 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { ApplicationModal } from '@/components/application-modal';
 
 /* -------------------------------------------------------------------------- */
 /*  Mock / placeholder data                                                    */
 /* -------------------------------------------------------------------------- */
-
-const stats = [
-  { label: 'Applied Internships', value: '12', delta: '+3 this week' },
-  { label: 'Interviews Scheduled', value: '3', delta: '2 upcoming' },
-  { label: 'Offers Received', value: '1', delta: 'Congrats! ✉️' },
-  { label: 'Profile Strength', value: '84%', delta: '+6% since last week' },
-  { label: 'Saved Internships', value: '27', delta: '5 new matches' },
-];
 
 const recommendedInternships = [
   {
@@ -49,14 +43,6 @@ const recommendedInternships = [
 ];
 
 type PipelineStage = 'Applied' | 'In Review' | 'Interview Scheduled' | 'Offer Received';
-
-const applications: { id: number; role: string; company: string; stage: PipelineStage; date: string }[] = [
-  { id: 1, role: 'Frontend Engineer Intern', company: 'Luminary Labs', stage: 'Offer Received', date: 'Jul 3' },
-  { id: 2, role: 'Full-Stack Developer Intern', company: 'Stackform', stage: 'Interview Scheduled', date: 'Jul 6' },
-  { id: 3, role: 'Platform Intern', company: 'Nexus Cloud', stage: 'In Review', date: 'Jun 28' },
-  { id: 4, role: 'Backend Intern', company: 'Helix API', stage: 'Applied', date: 'Jun 25' },
-  { id: 5, role: 'DevOps Intern', company: 'Gridline', stage: 'Applied', date: 'Jun 22' },
-];
 
 const stageStyle: Record<PipelineStage, { border: string; text: string; bg: string }> = {
   Applied:               { border: 'border-[#333]',   text: 'text-white/50', bg: 'bg-white/5' },
@@ -105,7 +91,7 @@ const quickActions = [
 ];
 
 /* -------------------------------------------------------------------------- */
-/*  Animation variants (DESIGN_SYSTEM.md §5-B)                                */
+/*  Animation variants                                                        */
 /* -------------------------------------------------------------------------- */
 
 const containerVariants = {
@@ -123,18 +109,87 @@ const itemVariants = {
 /* -------------------------------------------------------------------------- */
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [activeStage, setActiveStage] = useState<PipelineStage | 'All'>('All');
+  
+  // Real dynamic state
+  const [apps, setApps] = useState<{ id: any; role: string; company: string; stage: PipelineStage; date: string }[]>([]);
+  const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [selectedInternship, setSelectedInternship] = useState<{ role: string; company: string; id: number | string } | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Load status from localStorage and listen for changes
+  useEffect(() => {
+    const loadState = () => {
+      const storedApps = localStorage.getItem('devstart:applications');
+      if (storedApps) {
+        setApps(JSON.parse(storedApps));
+      } else {
+        const defaultApps = [
+          { id: 1, role: 'Frontend Engineer Intern', company: 'Luminary Labs', stage: 'Offer Received' as PipelineStage, date: 'Jul 3' },
+          { id: 2, role: 'Full-Stack Developer Intern', company: 'Stackform', stage: 'Interview Scheduled' as PipelineStage, date: 'Jul 6' },
+          { id: 3, role: 'Platform Intern', company: 'Nexus Cloud', stage: 'In Review' as PipelineStage, date: 'Jun 28' },
+          { id: 4, role: 'Backend Intern', company: 'Helix API', stage: 'Applied' as PipelineStage, date: 'Jun 25' },
+          { id: 5, role: 'DevOps Intern', company: 'Gridline', stage: 'Applied' as PipelineStage, date: 'Jun 22' },
+        ];
+        localStorage.setItem('devstart:applications', JSON.stringify(defaultApps));
+        setApps(defaultApps);
+      }
+
+      const storedSaved = localStorage.getItem('devstart:saved_internships');
+      if (storedSaved) {
+        setSavedIds(JSON.parse(storedSaved));
+      }
+    };
+
+    loadState();
+    window.addEventListener('devstart:state-change', loadState);
+    return () => window.removeEventListener('devstart:state-change', loadState);
+  }, []);
+
+  const handleApplySuccess = (role: string, company: string) => {
+    const today = new Date();
+    const formattedDate = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const newApp = {
+      id: `rec-${Date.now()}`,
+      role,
+      company,
+      stage: 'Applied' as PipelineStage,
+      date: formattedDate,
+    };
+    const updatedApps = [newApp, ...apps];
+    setApps(updatedApps);
+    localStorage.setItem('devstart:applications', JSON.stringify(updatedApps));
+    window.dispatchEvent(new Event('devstart:state-change'));
+  };
+
+  const toggleBookmark = (id: string) => {
+    let updated: string[];
+    if (savedIds.includes(id)) {
+      updated = savedIds.filter((x) => x !== id);
+    } else {
+      updated = [...savedIds, id];
+    }
+    setSavedIds(updated);
+    localStorage.setItem('devstart:saved_internships', JSON.stringify(updated));
+    window.dispatchEvent(new Event('devstart:state-change'));
+  };
 
   const filteredApplications = activeStage === 'All'
-    ? applications
-    : applications.filter(app => app.stage === activeStage);
+    ? apps
+    : apps.filter(app => app.stage === activeStage);
+
+  // Dynamic statistics row
+  const dynamicStats = [
+    { label: 'Applied Internships', value: String(apps.length), delta: '+3 this week' },
+    { label: 'Interviews Scheduled', value: String(apps.filter(a => a.stage === 'Interview Scheduled').length), delta: 'Live scheduling' },
+    { label: 'Offers Received', value: String(apps.filter(a => a.stage === 'Offer Received').length), delta: 'Congrats! ✉️' },
+    { label: 'Profile Strength', value: '84%', delta: '+6% since last week' },
+    { label: 'Saved Internships', value: String(savedIds.length), delta: 'updated live' },
+  ];
 
   return (
-    /*
-     * Solid black background overlay.
-     * DottedSurface canvas lives at z-0 inside ClientShell; page content at z-10.
-     * The absolute inset-0 bg-black div covers the canvas for this route only.
-     */
     <div className="relative min-h-screen">
       {/* Static black backdrop — covers particle canvas on /dashboard only */}
       <div className="absolute inset-0 bg-black z-0 pointer-events-none" />
@@ -161,6 +216,65 @@ export default function DashboardPage() {
           </div>
 
           {/* -------------------------------------------------------------- */}
+          {/* 1.5. Quick Search Hero Widget                                    */}
+          {/* -------------------------------------------------------------- */}
+          <motion.div
+            variants={itemVariants}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="rounded-2xl border border-[#1c1c1c] bg-[#090909] p-6 space-y-4"
+          >
+            <div>
+              <p className="text-white/40 text-xs uppercase tracking-[0.15em] font-medium">Find Opportunities</p>
+              <h2 className="text-[1.3rem] font-bold leading-tight tracking-tight text-white mt-0.5">
+                Search Internships
+              </h2>
+            </div>
+            
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                </svg>
+              </span>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (searchQuery.trim()) {
+                  router.push(`/internships?search=${encodeURIComponent(searchQuery.trim())}`);
+                }
+              }}>
+                <input
+                  type="text"
+                  placeholder="Search by role, company, stack, or location…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-24 py-3 bg-black border border-[#1c1c1c] rounded-full text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors"
+                />
+                <button
+                  type="submit"
+                  className="absolute right-1.5 top-1.5 text-xs font-semibold text-black bg-white rounded-full px-4 py-2 hover:bg-white/90 transition-all duration-200 cursor-pointer"
+                >
+                  Search
+                </button>
+              </form>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[10px] text-white/45 uppercase font-bold tracking-wide">Popular:</span>
+              {['Remote', 'React', 'TypeScript', 'Node.js', 'Go', 'Python', 'ML'].map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => router.push(`/internships?search=${tag}`)}
+                  className="text-[10px] text-white/60 border border-[#1c1c1c] hover:border-[#333] hover:text-white rounded-full px-2.5 py-1 transition-all duration-200 cursor-pointer"
+                >
+                  #{tag}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* -------------------------------------------------------------- */}
           {/* 2. Stats Row                                                     */}
           {/* -------------------------------------------------------------- */}
           <motion.div
@@ -169,7 +283,7 @@ export default function DashboardPage() {
             initial="hidden"
             animate="show"
           >
-            {stats.map((stat) => (
+            {dynamicStats.map((stat) => (
               <motion.div
                 key={stat.label}
                 variants={itemVariants}
@@ -219,32 +333,82 @@ export default function DashboardPage() {
                   initial="hidden"
                   animate="show"
                 >
-                  {recommendedInternships.map((item) => (
-                    <motion.div
-                      key={item.id}
-                      variants={itemVariants}
-                      className="rounded-xl border border-[#1c1c1c] bg-black p-4 space-y-3 cursor-pointer hover:bg-[#121212] hover:border-[#333] transition-all duration-300"
-                    >
-                      <div>
-                        <p className="text-white font-semibold text-sm leading-snug tracking-tight">{item.role}</p>
-                        <p className="text-white/50 text-xs mt-0.5">{item.company}</p>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {item.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="text-[10px] text-white/60 border border-[#1c1c1c] rounded-full px-2.5 py-0.5 font-medium tracking-wide"
+                  {recommendedInternships.map((item) => {
+                    const isApplied = apps.some(
+                      (app) => app.role === item.role && app.company === item.company
+                    );
+                    const isBookmarked = savedIds.includes(`rec-${item.id}`);
+
+                    return (
+                      <motion.div
+                        key={item.id}
+                        variants={itemVariants}
+                        className="rounded-xl border border-[#1c1c1c] bg-black p-4 space-y-3 cursor-pointer hover:bg-[#121212] hover:border-[#333] transition-all duration-300 relative"
+                      >
+                        <div className="pr-8">
+                          <p className="text-white font-semibold text-sm leading-snug tracking-tight">{item.role}</p>
+                          <p className="text-white/50 text-xs mt-0.5">{item.company}</p>
+                        </div>
+
+                        {/* Bookmark Button */}
+                        <button
+                          onClick={() => toggleBookmark(`rec-${item.id}`)}
+                          className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors p-1.5 rounded-full hover:bg-white/5 cursor-pointer"
+                          title={isBookmarked ? 'Remove from Saved' : 'Save Internship'}
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill={isBookmarked ? 'currentColor' : 'none'}
+                            stroke="currentColor"
+                            strokeWidth={1.5}
+                            className="w-4 h-4"
                           >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                      <p className="text-white/40 text-xs leading-relaxed">{item.match}</p>
-                      <button className="w-full text-xs font-semibold text-black bg-white border border-transparent rounded-full py-2 hover:bg-white/90 transition-all duration-200 cursor-pointer">
-                        View &amp; Apply
-                      </button>
-                    </motion.div>
-                  ))}
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" />
+                          </svg>
+                        </button>
+
+                        <div className="flex flex-wrap gap-1.5">
+                          {item.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="text-[10px] text-white/60 border border-[#1c1c1c] rounded-full px-2.5 py-0.5 font-medium tracking-wide"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                        <p className="text-white/40 text-xs leading-relaxed">{item.match}</p>
+                        <button
+                          disabled={isApplied}
+                          onClick={() => {
+                            setSelectedInternship({
+                              id: `rec-${item.id}`,
+                              role: item.role,
+                              company: item.company,
+                            });
+                            setIsModalOpen(true);
+                          }}
+                          className={cn(
+                            "w-full text-xs font-semibold rounded-full py-2 transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5",
+                            isApplied
+                              ? "bg-[#121212] text-white/40 border border-[#1c1c1c] cursor-not-allowed"
+                              : "bg-white text-black hover:bg-white/90 border border-transparent"
+                          )}
+                        >
+                          {isApplied ? (
+                            <>
+                              <svg className="w-3 h-3 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>Applied</span>
+                            </>
+                          ) : (
+                            'View & Apply'
+                          )}
+                        </button>
+                      </motion.div>
+                    );
+                  })}
                 </motion.div>
               </div>
 
@@ -260,7 +424,7 @@ export default function DashboardPage() {
                   {activeStage !== 'All' && (
                     <button
                       onClick={() => setActiveStage('All')}
-                      className="text-xs text-white/50 hover:text-white border border-[#1c1c1c] hover:border-[#333] rounded-full px-3 py-1.5 transition-all duration-200"
+                      className="text-xs text-white/50 hover:text-white border border-[#1c1c1c] hover:border-[#333] rounded-full px-3 py-1.5 transition-all duration-200 cursor-pointer"
                     >
                       Reset Filter
                     </button>
@@ -270,7 +434,7 @@ export default function DashboardPage() {
                 {/* Stage switcher interactive tiles */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {(['Applied', 'In Review', 'Interview Scheduled', 'Offer Received'] as PipelineStage[]).map((stage) => {
-                    const count = applications.filter((app) => app.stage === stage).length;
+                    const count = apps.filter((app) => app.stage === stage).length;
                     const isActive = activeStage === stage;
                     return (
                       <button
@@ -448,6 +612,14 @@ export default function DashboardPage() {
           </div>
         </div>
       </motion.div>
+
+      {/* Application Form Drawer/Modal */}
+      <ApplicationModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        internship={selectedInternship}
+        onSubmitSuccess={handleApplySuccess}
+      />
     </div>
   );
 }
